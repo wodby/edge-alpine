@@ -1,2 +1,2 @@
-FROM wodby/edge-actions-alpine:v1.0.3
+FROM wodby/edge-actions-alpine:dev
 MAINTAINER Wodby <hello@wodby.com>
