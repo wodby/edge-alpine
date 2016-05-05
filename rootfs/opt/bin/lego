@@ -1,0 +1,20 @@
+#!/bin/sh
+
+. "/etc/wodby/config"
+. "/etc/wodby/functions"
+. "/etc/wodby/lego"
+
+action_key="wodby/states/execute/edge/lego"
+remove_key "${action_key}"
+log
+
+edge_dir="/mnt/containers/edge"
+
+if [ $debug ]; then
+    result=$("$WODBY_BIN/lego" -a --email="$email" --domains="$domains" --webroot="$edge_dir" --path="$edge_dir" --server=https://acme-staging.api.letsencrypt.org/directory $action 2>&1)
+  else
+    result=$("$WODBY_BIN/lego" -a --email="$email" --domains="$domains" --webroot="$edge_dir" --path="$edge_dir" $action 2>&1)
+fi
+
+errno=$?
+answer

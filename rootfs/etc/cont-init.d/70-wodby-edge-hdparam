@@ -1,0 +1,5 @@
+#!/bin/sh
+
+[ ! -f "/etc/nginx/pki/hdparam.pem" ] && openssl dhparam -out /etc/nginx/pki/dhparam.pem 2048 && chmod 400 /etc/nginx/pki/dhparam.pem
+
+exit 0

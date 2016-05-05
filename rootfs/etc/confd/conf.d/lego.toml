@@ -1,0 +1,11 @@
+[template]
+prefix = "/wodby/states/execute/wodby/edge"
+src = "lego.tmpl"
+dest = "/etc/wodby/lego"
+uid = 0
+gid = 0
+mode = "0644"
+keys = [
+  "/lego",
+]
+reload_cmd = "/opt/bin/lego"
