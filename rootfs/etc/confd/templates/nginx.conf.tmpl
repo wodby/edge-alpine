@@ -76,6 +76,11 @@ http {
         return 301 $scheme://$server_name$request_uri;
 {{end}}
 
+{{if $data.auth}}
+        auth_basic "Restricted";
+        auth_basic_user_file /mnt/containers/edge/.htpasswd;
+{{end}}
+
 {{if $data.ssl_required}}
         if ($scheme = http) {
             return 301 https://$server_name$request_uri;

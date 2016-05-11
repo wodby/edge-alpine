@@ -1,0 +1,14 @@
+#!/bin/sh
+
+. "/etc/wodby/config"
+. "/etc/wodby/functions"
+. "/etc/wodby/auth"
+
+action_key="wodby/states/execute/edge/auth"
+remove_key "${action_key}"
+log
+
+result=$(echo "$login:$pass" > /mnt/containers/edge/.htpasswd 2>&1)
+
+errno=$?
+answer
