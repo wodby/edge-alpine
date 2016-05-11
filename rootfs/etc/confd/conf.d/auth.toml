@@ -1,6 +1,6 @@
 [template]
 prefix = "/wodby/states/execute/wodby/edge"
-src = "lego.tmpl"
+src = "auth.tmpl"
 dest = "/etc/wodby/auth"
 uid = 0
 gid = 0
