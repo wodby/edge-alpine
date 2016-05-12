@@ -8,7 +8,7 @@ action_key="wodby/states/execute/edge/auth"
 remove_key "${action_key}"
 log
 
-result=$(echo "$login:$pass" > /mnt/containers/edge/.htpasswd 2>&1)
+result=$(mkdir -p "/mnt/containers/edge/$domain" && echo "$login:$pass" > "/mnt/containers/edge/$domain/.htpasswd" 2>&1)
 
 errno=$?
 answer
