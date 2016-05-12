@@ -76,11 +76,6 @@ http {
         return 301 $scheme://$server_name$request_uri;
 {{end}}
 
-{{if $data.auth}}
-        auth_basic "Restricted";
-        auth_basic_user_file /mnt/containers/edge/.htpasswd;
-{{end}}
-
 {{if $data.ssl_required}}
         if ($scheme = http) {
             return 301 https://$server_name$request_uri;
@@ -109,19 +104,22 @@ http {
 {{end}}
 
         location / {
-              {{if $data.maintenance}}set $maintenance 1;{{else}}set $maintenance 0;{{end}}
-              if ($maintenance) {
-                  return 503;
-              }
-              proxy_pass {{$data.proxy_proto}}://{{$data.proxy_addr}}:{{$data.proxy_port}};
-              proxy_http_version 1.1;
-              proxy_set_header Upgrade $http_upgrade;
-              proxy_set_header Connection $connection_upgrade;
-              proxy_set_header Host $host;
-              proxy_set_header X-Real-IP $remote_addr;
-              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-              proxy_set_header X-Forwarded-Proto $scheme;
-              proxy_redirect off;
+            {{if $data.maintenance}}return 503;{{end}}
+
+        {{if $data.auth}}
+            auth_basic "Restricted";
+            auth_basic_user_file /mnt/containers/edge/.htpasswd;
+        {{end}}
+
+            proxy_pass {{$data.proxy_proto}}://{{$data.proxy_addr}}:{{$data.proxy_port}};
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_redirect off;
         }
     }
 {{ end }}{{ end }}
