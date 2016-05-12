@@ -71,9 +71,9 @@ http {
         }
 
 {{if $data.redir_www}}
-        return 301 $scheme://redir_www$request_uri;
+        return 301 $scheme://{{$data.redir_www}}$request_uri;
 {{else if $data.redir_no_www}}
-        return 301 $scheme://$data.redir_no_www$request_uri;
+        return 301 $scheme://{{$data.redir_no_www}}$request_uri;
 {{end}}
 
 {{if $data.ssl_required}}
