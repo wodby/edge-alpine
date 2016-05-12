@@ -109,7 +109,6 @@ http {
         {{if $data.auth}}
             auth_basic "Restricted";
             auth_basic_user_file /mnt/containers/edge/auth/{{$domain}}.htpasswd;
-            proxy_set_header Authorization "";
         {{end}}
 
             proxy_pass {{$data.proxy_proto}}://{{$data.proxy_addr}}:{{$data.proxy_port}};
