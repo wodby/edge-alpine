@@ -1,3 +1,3 @@
 {{ range $key, $value := json (getv "/auth") }}
-{{ $key }}="{{ $value }}"
+{{ $key }}='{{ $value }}'
 {{ end }}
