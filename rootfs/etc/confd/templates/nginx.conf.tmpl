@@ -76,6 +76,10 @@ http {
         return 301 $scheme://{{$data.redir_no_www}}$request_uri;
 {{end}}
 
+{{if $data.no_robots}}
+        add_header  X-Robots-Tag "noindex, nofollow, nosnippet, noarchive";
+{{end}}
+
 {{if $data.ssl_required}}
         if ($scheme = http) {
             return 301 https://$server_name$request_uri;
