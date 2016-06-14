@@ -48,8 +48,6 @@ http {
     server_names_hash_bucket_size 128;
     server_names_hash_max_size 20480;
 
-    add_header X-Wodby-Node '{{ getenv "WODBY_NODE_UUID" }}' always;
-
     map $http_upgrade $connection_upgrade {
         default upgrade;
         ''      close;
@@ -76,8 +74,10 @@ http {
         return 301 $scheme://{{$data.redir_no_www}}$request_uri;
 {{end}}
 
+        add_header X-Wodby-Node "{{ getenv "WODBY_NODE_UUID" }}" always;
+
 {{if $data.no_robots}}
-        add_header  X-Robots-Tag "noindex, nofollow, nosnippet, noarchive";
+        add_header  X-Robots-Tag "noindex, nofollow, nosnippet, noarchive" always;
 {{end}}
 
 {{if $data.ssl_required}}
