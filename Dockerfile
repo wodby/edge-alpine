@@ -1,4 +1,4 @@
-FROM wodby/nginx-alpine:v1.1.0
+FROM wodby/nginx-alpine
 MAINTAINER Wodby <hello@wodby.com>
 
 RUN export LEGO_VER="v0.3.0" && \
