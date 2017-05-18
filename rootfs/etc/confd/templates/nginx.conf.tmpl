@@ -1,9 +1,9 @@
 user nginx;
-worker_processes 1;
+worker_processes auto;
 error_log /proc/self/fd/2;
 
 events {
-    worker_connections 1024;
+    worker_connections 4096;
     multi_accept on;
 }
 
