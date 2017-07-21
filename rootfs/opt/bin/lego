@@ -15,7 +15,7 @@ if [ $debug ]; then
   else
 
     if [ "${action}" = "renew" ]; then
-        days="--days 30"
+        days="--days=30"
     else
         days=""
     fi
