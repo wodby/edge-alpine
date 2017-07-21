@@ -14,7 +14,7 @@ if [ $debug ]; then
     result=$("$WODBY_BIN/lego" -a --email="$email" --domains="$domains" --webroot="$edge_dir" --path="$edge_dir" --server=https://acme-staging.api.letsencrypt.org/directory $action 2>&1)
   else
 
-    if [ "${action}" -eq "renew" ]; then
+    if [ "${action}" = "renew" ]; then
         days="--days 30"
     else
         days=""
