@@ -20,7 +20,7 @@ if [ $debug ]; then
         days=""
     fi
 
-    result=$("$WODBY_BIN/lego" -a --email="$email" --domains="$domains" --webroot="$edge_dir" --path="$edge_dir" "${action}" ${days}" 2>&1)
+    result=$("$WODBY_BIN/lego" -a --email="$email" --domains="$domains" --webroot="$edge_dir" --path="$edge_dir" "${action}" "${days}" 2>&1)
 fi
 
 errno=$?
