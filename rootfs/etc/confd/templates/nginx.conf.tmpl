@@ -137,24 +137,19 @@ http {
         server_name localhost;
         root /usr/share/nginx/html;
 
+        error_page 404 /custom-404.html;
+        error_page 503 /custom-503.html;
+        error_page 500 502 504 /custom-50x.html;
+
         ssl_certificate /etc/nginx/ssl/nginx.crt;
         ssl_certificate_key /etc/nginx/ssl/nginx.key;
 
-        error_page 404 /index.html;
-
         location / {
-            return 404;
+            return 503;
         }
-        location = /index.html {
-            root /usr/share/nginx/html;
-        }
-        location = /backup404.html {
-            root /usr/share/nginx/html;
-        }
+
         location /backups/ {
             autoindex off;
-            error_page 404 /backup404.html;
-            root /usr/share/nginx/html;
         }
     }
 }
