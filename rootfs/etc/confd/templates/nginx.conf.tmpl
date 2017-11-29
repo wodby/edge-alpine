@@ -106,7 +106,9 @@ http {
         ssl_stapling on;
         ssl_trusted_certificate /mnt/containers/edge/certificates/{{$domain}}.crt;
 
-        add_header Strict-Transport-Security "max-age=31536000";
+        {{if $data.hsts}}
+            add_header Strict-Transport-Security "max-age=31536000";
+        {{end}}
 {{end}}
 
         location / {
