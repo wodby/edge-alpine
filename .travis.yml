@@ -27,3 +27,8 @@ after_success: |
     docker rmi $REPO:$COMMIT
     docker push $REPO
   fi
+
+notifications:
+  on_failure: never
+  slack:
+    secure: "kY1kULV2dvGXhhmhF0ozRcG3JcEFgDwzCAc2ALe3KjEQBdw7DTwfv5wlnSc4J/48NrCMxUQ9eesXZeUkm6r6i/qAfHehdRX5WR6NS+RjgYR6pPDppdBLDhO+v2/QnPAdt3X5LjJkmsMpVXe5HWzY5cMyX/PpDRcBaAut5oF/z4W464meqvfs5/2VNjvCyWafYaptbRMtLzGqnckimBABwLw1+cCQUmLOQViHCvT3cEiIGAHdPm/6IN0Ra3KzjffEZRxktjMsmZXH8DT+/2Z8LwJlIjnq/oujDX3Kuyxh82QfiJKh7n5fjIQUO8f0Yo6RG8ObEzVIhqIBkvn/H/rJpFc/1A8MaVfbeq3tGY0dbQOaOUqTObX0TmIn/pr5rhwf0twEGwOpCzeBoJsgd3PUBmcNP35e4aw1W73/La0/MwuBhgqtpQhLcaRNAnpRGhGO4sNnVS9potHSZP2FsejhDuNYvTCfJLJ96WEpRSkVI2o9NnWEonlfmeyhWJVm40bcSbXwCnobtTe0Aj6pHFjGFnDFs+j0GYIWxNDOzpDl+RgjjmoTjGG35MG+tD0IDSW82Lz6O+3RLAdHO2rV0peQMWXl920PPGmNuA94gq4FBopD1/mlza9iUx/r8zqpONzr/2OIvUbcgb8+e82j5LRsUYmqx9rlmPkyZj0dymWRM74="
