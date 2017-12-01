@@ -107,7 +107,7 @@ http {
         ssl_trusted_certificate /mnt/containers/edge/certificates/{{$domain}}.crt;
 
         {{if $data.hsts}}
-            add_header Strict-Transport-Security "max-age=31536000"{{if $data.hsts_subdomains}}; includeSubDomains{{end}}
+            add_header Strict-Transport-Security "max-age=31536000"{{if $data.hsts_subdomains}}; includeSubDomains{{end}}" always;
         {{end}}
 {{end}}
 
