@@ -1,5 +1,16 @@
 #!/bin/sh
 
-[ ! -f "/etc/nginx/pki/hdparam.pem" ] && openssl dhparam -out /etc/nginx/pki/dhparam.pem 2048 && chmod 400 /etc/nginx/pki/dhparam.pem
+set -e
 
-exit 0
+if [[ -n "${DEBUG}" ]]; then
+    set -x
+fi
+
+dh_file=/mnt/containers/edge/dhparam.pem
+
+if [ ! -f "${dh_file}" ]; then
+    openssl dhparam -out "${dh_file}" 2048
+    chmod 400 "${dh_file}"
+fi
+
+cp "${dh_file}" /etc/nginx/pki/dhparam.pem
