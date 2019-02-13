@@ -62,8 +62,8 @@ http {
 
 {{if ls "/http"}}{{range gets "/http/*"}}{{$domain := base .Key}}{{$data := json .Value}}
     server {
-        listen 80;
-        {{if $data.ssl}}listen 443 ssl http2;{{end}}
+        listen [::]:80;
+        {{if $data.ssl}}listen [::]:443 ssl http2;{{end}}
         server_name {{$domain}};
 
         location /.well-known/acme-challenge {
@@ -133,8 +133,8 @@ http {
 {{ end }}{{ end }}
 
     server {
-        listen 80 default_server;
-        listen 443 ssl http2 default_server;
+        listen [::]:80 default_server;
+        listen [::]:443 ssl http2 default_server;
 
         server_name localhost;
         root /usr/share/nginx/html;
