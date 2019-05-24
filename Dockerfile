@@ -148,6 +148,9 @@ RUN set -ex; \
     apk del --purge .nginx-build-deps; \
     rm -rf \
         /tmp/* \
-        /var/cache/apk/* ;
+        /var/cache/apk/* \
+    \
+    # Remove wrong-named init script from base layer.
+    rm rootfs/etc/cont-init.d/70-wodby-edge-hdparam;
 
 COPY rootfs /
