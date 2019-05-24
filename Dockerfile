@@ -151,6 +151,6 @@ RUN set -ex; \
         /var/cache/apk/* \
     \
     # Remove wrong-named init script from base layer.
-    rm rootfs/etc/cont-init.d/70-wodby-edge-hdparam;
+    rm /etc/cont-init.d/70-wodby-edge-hdparam;
 
 COPY rootfs /
