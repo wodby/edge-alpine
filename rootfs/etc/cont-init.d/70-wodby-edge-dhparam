@@ -9,7 +9,8 @@ fi
 dh_file=/mnt/containers/edge/dhparam.pem
 
 if [[ ! -f "${dh_file}" ]]; then
-    openssl dhparam -out "${dh_file}" 2048
+    openssl dhparam -out /tmp/dhparam.pem 2048
+    mv /tmp/dhparam.pem "${dh_file}"
     chmod 400 "${dh_file}"
 fi
 
