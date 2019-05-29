@@ -139,6 +139,8 @@ http {
         server_name localhost;
         root /usr/share/nginx/html;
 
+        ssl_protocols TLSv1.2 TLSv1.3;
+
         ssl_dhparam /etc/nginx/pki/dhparam.pem;
         ssl_certificate /etc/nginx/ssl/nginx.crt;
         ssl_certificate_key /etc/nginx/ssl/nginx.key;
