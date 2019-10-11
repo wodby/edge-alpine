@@ -11,7 +11,7 @@ log
 edge_dir="/mnt/containers/edge"
 
 if [ $debug ]; then
-    result=$("$WODBY_BIN/lego" -a --email="$email" --domains="$domains" --webroot="$edge_dir" --path="$edge_dir" --server=https://acme-staging.api.letsencrypt.org/directory $action 2>&1)
+    result=$("$WODBY_BIN/lego" -a --email="${email}" --domains="${domains}" --http --http.webroot="${edge_dir}" --path="${edge_dir}" --server=https://acme-staging.api.letsencrypt.org/directory "${action}" 2>&1)
   else
 
     if [ "${action}" = "renew" ]; then
@@ -20,7 +20,7 @@ if [ $debug ]; then
         days=""
     fi
 
-    result=$("$WODBY_BIN/lego" -a --email="$email" --domains="$domains" --webroot="$edge_dir" --path="$edge_dir" "${action}" "${days}" 2>&1)
+    result=$("$WODBY_BIN/lego" -a --email="${email}" --domains="${domains}" --http --http.webroot="${edge_dir}" --path="${edge_dir}" "${action}" "${days}" 2>&1)
 fi
 
 errno=$?
