@@ -1,12 +1,26 @@
+# Build Lego tool
+FROM golang:1.13.1-alpine
+ENV LEGO_VER="v3.1.0" \
+    CGO_ENABLED=0
+RUN set -ex; \
+    \
+    apk add --update --no-cache build-base git; \
+    git clone --branch ${LEGO_VER} --depth=1 --single-branch https://github.com/go-acme/lego.git /tmp/lego; \
+    cd /tmp/lego; \
+    make build
+
+# Build Nginx
 FROM wodby/edge-alpine:1.3.1
 
-ENV LEGO_VER="v2.2.0" \
-    NGINX_VER="1.16.1" \
+ENV NGINX_VER="1.16.1" \
     NGINX_UP_VER="0.9.1" \
     APP_ROOT="/var/www/html" \
     FILES_DIR="/mnt/files" \
     NGINX_VHOST_PRESET="html" \
     OWASP_CRS_VER="3.1.0"
+
+# Copy lego tool.
+COPY --from=0 /tmp/lego/dist/lego /opt/wodby/bin/
 
 RUN set -ex; \
     \
@@ -30,11 +44,6 @@ RUN set -ex; \
     \
     gotpl_url="https://github.com/wodby/gotpl/releases/download/0.1.5/gotpl-alpine-linux-amd64-0.1.5.tar.gz"; \
     wget -qO- "${gotpl_url}" | tar xz -C /usr/local/bin; \
-    \
-    # Install Lego
-    wget -qO- https://s3.amazonaws.com/wodby-releases/lego/${LEGO_VER}/lego.tar.gz | tar xz -C /tmp/; \
-    mkdir -p /opt/wodby/bin; \
-    mv /tmp/lego /opt/wodby/bin; \
     \
     # Build and install nginx
     \
