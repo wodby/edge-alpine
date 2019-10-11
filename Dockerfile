@@ -1,6 +1,6 @@
 FROM wodby/edge-alpine:1.3.1
 
-ENV LEGO_VER="v0.4.0" \
+ENV LEGO_VER="v2.2.0" \
     NGINX_VER="1.16.1" \
     NGINX_UP_VER="0.9.1" \
     APP_ROOT="/var/www/html" \
