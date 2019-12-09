@@ -12,14 +12,16 @@ edge_dir="/mnt/containers/edge"
 
 if [ $debug ]; then
     result=$("$WODBY_BIN/lego" -a --email="${email}" --domains="${domains}" --http --http.webroot="${edge_dir}" --path="${edge_dir}" --server=https://acme-staging.api.letsencrypt.org/directory "${action}" 2>&1)
-  else
-
+else
     if [ "${action}" = "renew" ]; then
         days="--days=30"
     else
         days=""
     fi
-
+    if [ ! -f /mnt/containers/edge/accounts/acme-v02.api.letsencrypt.org/hello@wodby.com/account.json ]; then
+        action="run"
+        days=""
+    fi
     result=$("$WODBY_BIN/lego" -a --email="${email}" --domains="${domains}" --http --http.webroot="${edge_dir}" --path="${edge_dir}" "${action}" "${days}" 2>&1)
 fi
 
