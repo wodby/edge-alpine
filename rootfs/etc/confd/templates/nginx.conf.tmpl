@@ -90,26 +90,29 @@ http {
 {{end}}
 
 {{if $data.ssl}}
+        #
+        # SSL config based on https://ssl-config.mozilla.org/#server=nginx&version=1.17.7&config=intermediate&openssl=1.1.1d&guideline=5.6
+        #
+
         ssl_certificate /mnt/containers/edge/certificates/{{$domain}}.crt;
         ssl_certificate_key /mnt/containers/edge/certificates/{{$domain}}.key;
-
-        ssl_session_cache shared:SSL:50m;
-        ssl_session_timeout 5m;
+        ssl_session_timeout 1d;
+        ssl_session_cache shared:MozSSL:10m;  # about 40000 sessions
+        ssl_session_tickets off;
 
         ssl_dhparam /etc/nginx/pki/dhparam.pem;
+        ssl_ecdh_curve X25519:prime256v1:secp384r1;
 
         ssl_protocols TLSv1.2 TLSv1.3;
-        ssl_prefer_server_ciphers on;
+        ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+        ssl_prefer_server_ciphers off;
 
-        ssl_ciphers "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA:ECDHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA256:DHE-RSA-AES128-SHA256:DHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA:ECDHE-RSA-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA:AES256-GCM-SHA384:AES128-GCM-SHA256:AES256-SHA256:AES128-SHA256:AES256-SHA:AES128-SHA:DES-CBC3-SHA:HIGH:!aNULL:!eNULL:!EXPORT:!DES:!MD5:!PSK:!RC4";
+        {{if $data.hsts}}add_header Strict-Transport-Security "max-age=63072000{{if $data.hsts_subdomains}}; includeSubDomains{{end}}" always;{{end}}
 
-        resolver 8.8.8.8;
         ssl_stapling on;
-        ssl_trusted_certificate /mnt/containers/edge/certificates/{{$domain}}.crt;
+        ssl_stapling_verify on;
 
-        {{if $data.hsts}}
-            add_header Strict-Transport-Security "max-age=31536000{{if $data.hsts_subdomains}}; includeSubDomains{{end}}" always;
-        {{end}}
+        ssl_trusted_certificate /mnt/containers/edge/certificates/{{$domain}}.crt;
 {{end}}
 
         location / {
@@ -140,11 +143,21 @@ http {
         server_name localhost;
         root /usr/share/nginx/html;
 
-        ssl_protocols TLSv1.2 TLSv1.3;
-
-        ssl_dhparam /etc/nginx/pki/dhparam.pem;
         ssl_certificate /etc/nginx/ssl/nginx.crt;
         ssl_certificate_key /etc/nginx/ssl/nginx.key;
+        ssl_session_timeout 1d;
+        ssl_session_cache shared:MozSSL:10m;  # about 40000 sessions
+        ssl_session_tickets off;
+
+        ssl_dhparam /etc/nginx/pki/dhparam.pem;
+        ssl_ecdh_curve X25519:prime256v1:secp384r1;
+
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+        ssl_prefer_server_ciphers off;
+
+        ssl_stapling on;
+        ssl_stapling_verify on;
 
         error_page 503 /custom_503.html;
         error_page 500 502 504 /custom_50x.html;
