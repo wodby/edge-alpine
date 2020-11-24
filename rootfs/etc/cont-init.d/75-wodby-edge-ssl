@@ -16,7 +16,7 @@ if [[ ! -f /mnt/containers/edge/ssl.key ]]; then
     mv /tmp/ssl.crt /mnt/containers/edge/ssl.crt
 
     chmod 400 /tmp/ssl.key /mnt/containers/edge/ssl.key
-    chmod 400 /tmp/ssl.key /mnt/containers/edge/ssl.crt
+    chmod 400 /tmp/ssl.crt /mnt/containers/edge/ssl.crt
 fi
 
 mkdir -p /etc/nginx/ssl
