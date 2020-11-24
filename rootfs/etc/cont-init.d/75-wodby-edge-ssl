@@ -6,12 +6,19 @@ if [[ -n "${DEBUG}" ]]; then
     set -x
 fi
 
-dh_file=/mnt/containers/edge/dhparam.pem
+if [[ ! -f /mnt/containers/edge/ssl.key ]]; then
+    openssl req -newkey rsa:4096 -days 3650 -nodes -x509 \
+      -subj "/C=US/ST=California/L=Sunnyvale/O=Wodby/CN=Wodby/emailAddress=hello@wodby.com" \
+      -keyout /tmp/ssl.key \
+      -out /tmp/ssl.crt
 
-if [[ ! -f "${dh_file}" ]]; then
-    openssl dhparam -out /tmp/dhparam.pem 2048
-    mv /tmp/dhparam.pem "${dh_file}"
-    chmod 400 "${dh_file}"
+    mv /tmp/ssl.key /mnt/containers/edge/ssl.key
+    mv /tmp/ssl.crt /mnt/containers/edge/ssl.crt
+
+    chmod 400 /tmp/ssl.key /mnt/containers/edge/ssl.key
+    chmod 400 /tmp/ssl.key /mnt/containers/edge/ssl.crt
 fi
 
-cp "${dh_file}" /etc/nginx/pki/dhparam.pem
+mkdir -p /etc/nginx/ssl
+cp /mnt/containers/edge/ssl.key /etc/nginx/ssl/default.key
+cp /mnt/containers/edge/ssl.crt /etc/nginx/ssl/default.crt
