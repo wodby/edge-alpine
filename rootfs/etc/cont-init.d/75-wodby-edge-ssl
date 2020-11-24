@@ -1,0 +1,17 @@
+#!/bin/sh
+
+set -e
+
+if [[ -n "${DEBUG}" ]]; then
+    set -x
+fi
+
+dh_file=/mnt/containers/edge/dhparam.pem
+
+if [[ ! -f "${dh_file}" ]]; then
+    openssl dhparam -out /tmp/dhparam.pem 2048
+    mv /tmp/dhparam.pem "${dh_file}"
+    chmod 400 "${dh_file}"
+fi
+
+cp "${dh_file}" /etc/nginx/pki/dhparam.pem
