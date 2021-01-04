@@ -69,6 +69,7 @@ http {
 
         location /.well-known/acme-challenge {
             root /mnt/containers/edge;
+            try_files $uri =404;
         }
 
 {{if $data.redir_www}}
