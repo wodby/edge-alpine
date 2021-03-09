@@ -1,3 +1,3 @@
 # Wodby Edge service
 
-[![Build Status](https://travis-ci.org/wodby/edge-alpine.svg?branch=master)](https://travis-ci.org/wodby/edge-alpine)
+[![Build Status](https://github.com/wodby/edge-alpine/workflows/Build%20docker%20image/badge.svg)](https://github.com/wodby/edge-alpine/actions)

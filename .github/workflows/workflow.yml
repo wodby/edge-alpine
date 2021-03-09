@@ -1,0 +1,24 @@
+name: Build docker image
+
+on:
+  push:
+    branches:
+    - master
+
+    tags:
+    - '*'
+
+  pull_request:
+
+env:
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: ./.github/actions
+      with:
+        tags: ${{ github.sha }},latest

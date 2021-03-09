@@ -1,0 +1,17 @@
+name: Build
+description: Build docker image
+inputs:
+  tags:
+    description: image tags
+    required: true
+runs:
+  using: "composite"
+  steps:
+  - name: Build image
+    env:
+      TAGS: ${{ inputs.tags }}
+    run: |
+      set -e
+      make
+      . $GITHUB_ACTION_PATH/release.sh
+    shell: bash
