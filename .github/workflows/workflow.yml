@@ -19,6 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+    - name: get short SHA
+      id: sha
+      run: echo "::set-output name=sha8::$(echo ${GITHUB_SHA} | cut -c1-8)"
     - uses: ./.github/actions
       with:
-        tags: ${{ github.sha }},latest
+        tags: ${{ steps.sha.outputs.sha8 }},latest
