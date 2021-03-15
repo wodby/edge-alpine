@@ -164,6 +164,9 @@ RUN set -ex; \
     \
     # Clear old default certificate.
     rm /etc/nginx/ssl/nginx.crt; \
-    rm /etc/nginx/ssl/nginx.key
+    rm /etc/nginx/ssl/nginx.key; \
+    # Clear crontabs.
+    rm -rf /etc/periodic; \
+    rm -rf /etc/crontab/root
 
 COPY rootfs /

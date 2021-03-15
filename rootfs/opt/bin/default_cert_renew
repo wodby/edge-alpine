@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+domain="node-${WODBY_NODE_UUID}.${WODBY_BASE_DOMAIN:-wod.by}"
+
+if [[ -f /mnt/containers/edge/certificates/"${domain}".key ]]; then
+  /opt/wodby/bin/lego -a --email="hello@wodby.com" --domains="${domain}" --http --http.webroot=/mnt/containers/edge --path=/mnt/containers/edge renew --days=45
+fi
+
+cp /mnt/containers/edge/certificates/"${domain}".key /etc/nginx/ssl/default.key
+cp /mnt/containers/edge/certificates/"${domain}".crt /etc/nginx/ssl/default.crt
+
+/usr/sbin/nginx -t
+/usr/sbin/nginx -s reload

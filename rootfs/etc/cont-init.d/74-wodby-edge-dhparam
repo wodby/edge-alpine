@@ -1,10 +1,6 @@
 #!/bin/sh
 
-set -e
-
-if [[ -n "${DEBUG}" ]]; then
-    set -x
-fi
+set -eo pipefail
 
 if [[ ! -f /mnt/containers/edge/dhparam.pem ]]; then
     openssl dhparam -out /tmp/dhparam.pem 2048

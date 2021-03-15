@@ -1,10 +1,6 @@
 #!/bin/sh
 
-set -e
-
-if [[ -n "${DEBUG}" ]]; then
-    set -x
-fi
+set -eo pipefail
 
 if [[ ! -f /mnt/containers/edge/ssl.key ]]; then
     openssl req -newkey rsa:4096 -days 3650 -nodes -x509 \
@@ -19,5 +15,13 @@ if [[ ! -f /mnt/containers/edge/ssl.key ]]; then
 fi
 
 mkdir -p /etc/nginx/ssl
-cp /mnt/containers/edge/ssl.key /etc/nginx/ssl/default.key
-cp /mnt/containers/edge/ssl.crt /etc/nginx/ssl/default.crt
+
+domain="node-${WODBY_NODE_UUID}.${WODBY_BASE_DOMAIN:-wod.by}"
+
+if [[ -f /mnt/containers/edge/certificates/"${domain}".key ]]; then
+  cp /mnt/containers/edge/certificates/"${domain}".key /etc/nginx/ssl/default.key
+  cp /mnt/containers/edge/certificates/"${domain}".crt /etc/nginx/ssl/default.crt
+else
+  cp /mnt/containers/edge/ssl.key /etc/nginx/ssl/default.key
+  cp /mnt/containers/edge/ssl.crt /etc/nginx/ssl/default.crt
+fi

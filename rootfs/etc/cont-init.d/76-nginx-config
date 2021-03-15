@@ -1,0 +1,5 @@
+#!/bin/sh
+
+set -eo pipefail
+
+/usr/local/bin/gotpl /etc/gotpl/nginx.conf.tmpl > /etc/nginx/nginx.conf
