@@ -1,0 +1,7 @@
+#!/bin/sh
+
+set -eo pipefail
+
+mkdir -p /etc/crontabs
+/usr/local/bin/gotpl /etc/gotpl/root.crontabs.tmpl > /etc/crontabs/root
+crontab /etc/crontabs/root

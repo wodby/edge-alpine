@@ -167,6 +167,6 @@ RUN set -ex; \
     rm /etc/nginx/ssl/nginx.key; \
     # Clear crontabs.
     rm -rf /etc/periodic; \
-    rm -rf /etc/crontab/root
+    rm -rf /etc/crontabs
 
 COPY rootfs /

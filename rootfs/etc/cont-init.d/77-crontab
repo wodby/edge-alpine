@@ -1,5 +1,0 @@
-#!/bin/sh
-
-set -eo pipefail
-
-/usr/local/bin/gotpl /etc/gotpl/root.crontab.tmpl > /etc/crontab/root
