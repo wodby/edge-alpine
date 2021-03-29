@@ -12,7 +12,7 @@ RUN set -ex; \
 # Build Nginx
 FROM wodby/edge-alpine:1.3.1
 
-ENV NGINX_VER="1.16.1" \
+ENV NGINX_VER="1.19.8" \
     NGINX_UP_VER="0.9.1" \
     APP_ROOT="/var/www/html" \
     FILES_DIR="/mnt/files" \
@@ -26,7 +26,7 @@ RUN set -ex; \
     \
     # Upgrade alpine
     apk add --update busybox-static apk-tools-static; \
-    sed -i -e 's/v3\.4/v3.9/g' /etc/apk/repositories; \
+    sed -i -e 's/v3\.4/v3.10/g' /etc/apk/repositories; \
     \
     apk.static update; \
     apk.static upgrade --no-self-upgrade --available; \
