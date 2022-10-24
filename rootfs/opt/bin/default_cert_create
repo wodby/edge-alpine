@@ -2,7 +2,7 @@
 
 set -eo pipefail
 
-domain="node-${WODBY_NODE_UUID}.${WODBY_BASE_DOMAIN:-wod.by}"
+domain="node-${WODBY_NODE_UUID}.${WODBY_BASE_DOMAIN:-wodby.cloud}"
 
 if [[ ! -f /mnt/containers/edge/certificates/"${domain}".key ]]; then
   /opt/wodby/bin/lego -a --email="hello@wodby.com" --domains="${domain}" --http --http.webroot=/mnt/containers/edge --path=/mnt/containers/edge run

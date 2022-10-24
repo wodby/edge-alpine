@@ -16,7 +16,7 @@ fi
 
 mkdir -p /etc/nginx/ssl
 
-domain="node-${WODBY_NODE_UUID}.${WODBY_BASE_DOMAIN:-wod.by}"
+domain="node-${WODBY_NODE_UUID}.${WODBY_BASE_DOMAIN:-wodby.cloud}"
 
 if [[ -f /mnt/containers/edge/certificates/"${domain}".key ]]; then
   cp /mnt/containers/edge/certificates/"${domain}".key /etc/nginx/ssl/default.key
