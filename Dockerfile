@@ -12,6 +12,8 @@ RUN set -ex; \
 # Build Nginx
 FROM wodby/edge-alpine:1.3.1
 
+COPY patches /tmp/patches
+
 ENV NGINX_VER="1.24.0" \
     NGINX_UP_VER="0.9.1" \
     APP_ROOT="/var/www/html" \
@@ -75,6 +77,10 @@ RUN set -ex; \
     mkdir -p /tmp/ngx_http_uploadprogress_module; \
     url="https://github.com/masterzen/nginx-upload-progress-module/archive/v${NGINX_UP_VER}.tar.gz"; \
     wget -qO- "${url}" | tar xz --strip-components=1 -C /tmp/ngx_http_uploadprogress_module; \
+    if [[ -d "/tmp/patches" ]]; then \
+        cd /tmp/ngx_http_uploadprogress_module; \
+        patch -p1 -i "/tmp/patches/uploadprogress.patch"; \
+    fi; \    
     \
     # Download nginx.
     curl -fSL "https://nginx.org/download/nginx-${NGINX_VER}.tar.gz" -o /tmp/nginx.tar.gz; \
