@@ -12,7 +12,7 @@ RUN set -ex; \
 # Build Nginx
 FROM wodby/edge-alpine:1.3.1
 
-ENV NGINX_VER="1.19.10" \
+ENV NGINX_VER="1.24.0" \
     NGINX_UP_VER="0.9.1" \
     APP_ROOT="/var/www/html" \
     FILES_DIR="/mnt/files" \
