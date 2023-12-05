@@ -27,7 +27,7 @@ http {
     proxy_set_header Connection "";
 
     client_max_body_size 0;
-    http2_max_field_size 8k;
+    large_client_header_buffers 4 32k;
 
     port_in_redirect off;
     send_timeout 600;
