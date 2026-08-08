@@ -1,8 +1,9 @@
 http_request() {
-  local method url body_file rest authority host port path content_length response err
+  local method url body_file content_type rest authority host port path content_length response err
   method="$1"
   url="$2"
   body_file="${3:-}"
+  content_type="${4:-application/json}"
 
   case "${url}" in
     http://*) rest="${url#http://}" ;;
@@ -39,7 +40,7 @@ http_request() {
     printf 'Host: %s\r\n' "${authority}"
     printf 'Content-Length: %s\r\n' "${content_length}"
     if [ "${content_length}" -gt 0 ]; then
-      printf 'Content-Type: application/x-www-form-urlencoded\r\n'
+      printf 'Content-Type: %s\r\n' "${content_type}"
     fi
     printf 'Connection: close\r\n\r\n'
     if [ "${content_length}" -gt 0 ]; then
@@ -48,6 +49,32 @@ http_request() {
   } | nc -w 3 "${host}" "${port}" >"${response}"
   err=$?
   rm -f "${response}"
+  return "${err}"
+}
+
+etcd_put() {
+  local key value body_file encoded_key encoded_value err
+  key="/${1#/}"
+  value="$2"
+  body_file="/tmp/etcd-put-$(cat /proc/sys/kernel/random/uuid)"
+  encoded_key="$(printf '%s' "${key}" | base64 | tr -d '\n')"
+  encoded_value="$(printf '%s' "${value}" | base64 | tr -d '\n')"
+  printf '{"key":"%s","value":"%s"}' "${encoded_key}" "${encoded_value}" >"${body_file}"
+  http_request POST "${etcd}/v3/kv/put" "${body_file}" application/json
+  err=$?
+  rm -f "${body_file}"
+  return "${err}"
+}
+
+etcd_delete() {
+  local key body_file encoded_key err
+  key="/${1#/}"
+  body_file="/tmp/etcd-delete-$(cat /proc/sys/kernel/random/uuid)"
+  encoded_key="$(printf '%s' "${key}" | base64 | tr -d '\n')"
+  printf '{"key":"%s"}' "${encoded_key}" >"${body_file}"
+  http_request POST "${etcd}/v3/kv/deleterange" "${body_file}" application/json
+  err=$?
+  rm -f "${body_file}"
   return "${err}"
 }
 
@@ -71,14 +98,14 @@ answer() {
     if [ "${is_backend}" = "0" ]; then
       printf '{"type":"response","state_uuid":"%s","namespace":"%s","hostname":"%s","task":"%s","error":{"errno":"%s","message":"%s"}}' "${state_uuid}" "${WODBY_NAMESPACE}" "${HOSTNAME}" "${0##*/}" "${errno}" "${result}" >"/tmp/${tmp_answer}"
     else
-      printf 'value={"type":"response","state_uuid":"%s","namespace":"%s","hostname":"%s","task":"%s","error":{"errno":"%s","message":"%s"}}' "${state_uuid}" "${WODBY_NAMESPACE}" "${HOSTNAME}" "${0##*/}" "${errno}" "${result}" >"/tmp/${tmp_answer}"
+      printf '{"type":"response","state_uuid":"%s","namespace":"%s","hostname":"%s","task":"%s","error":{"errno":"%s","message":"%s"}}' "${state_uuid}" "${WODBY_NAMESPACE}" "${HOSTNAME}" "${0##*/}" "${errno}" "${result}" >"/tmp/${tmp_answer}"
     fi
   else
     log 'processed with result'
     if [ "${is_backend}" = "0" ]; then
       printf '{"type":"response","state_uuid":"%s","namespace":"%s","hostname":"%s","task":"%s","result":"%s"}' "${state_uuid}" "${WODBY_NAMESPACE}" "${HOSTNAME}" "${0##*/}" "${result}" >"/tmp/${tmp_answer}"
     else
-      printf 'value={"type":"response","state_uuid":"%s","namespace":"%s","hostname":"%s","task":"%s","result":"%s"}' "${state_uuid}" "${WODBY_NAMESPACE}" "${HOSTNAME}" "${0##*/}" "${result}" >"/tmp/${tmp_answer}"
+      printf '{"type":"response","state_uuid":"%s","namespace":"%s","hostname":"%s","task":"%s","result":"%s"}' "${state_uuid}" "${WODBY_NAMESPACE}" "${HOSTNAME}" "${0##*/}" "${result}" >"/tmp/${tmp_answer}"
     fi
   fi
 
@@ -88,7 +115,7 @@ answer() {
       nc -w 3 "${backend_host}" "${backend_port}" <"/tmp/${tmp_answer}"
       err=$?
     else
-      http_request PUT "${etcd}/${response_path}" "/tmp/${tmp_answer}"
+      etcd_put "${response_path}" "$(cat "/tmp/${tmp_answer}")"
       err=$?
     fi
 
@@ -120,7 +147,7 @@ log() {
   if [ "${is_backend}" = "0" ]; then
     printf '{"type":"log","log":{"message_uuid":"%s","data":{"namespace":"%s","hostname":"%s","task":"%s"},"message":"%s","severity":200,"type":"iaas.%s"}}' "${state_uuid}" "${WODBY_NAMESPACE}" "${HOSTNAME}" "${0##*/}" "${message}" "${0##*/}" >"/tmp/${tmp_answer}"
   else
-    printf 'value={"type":"log","log":{"message_uuid":"%s","data":{"namespace":"%s","hostname":"%s","task":"%s"},"message":"%s","severity":200,"type":"iaas.%s"}}' "${state_uuid}" "${WODBY_NAMESPACE}" "${HOSTNAME}" "${0##*/}" "${message}" "${0##*/}" >"/tmp/${tmp_answer}"
+    printf '{"type":"log","log":{"message_uuid":"%s","data":{"namespace":"%s","hostname":"%s","task":"%s"},"message":"%s","severity":200,"type":"iaas.%s"}}' "${state_uuid}" "${WODBY_NAMESPACE}" "${HOSTNAME}" "${0##*/}" "${message}" "${0##*/}" >"/tmp/${tmp_answer}"
   fi
 
   while [ "${retries}" -ge "0" ]; do
@@ -128,7 +155,7 @@ log() {
       nc -w 3 "${backend_host}" "${backend_port}" <"/tmp/${tmp_answer}"
       err=$?
     else
-      http_request PUT "${etcd}/${response_path}" "/tmp/${tmp_answer}"
+      etcd_put "${response_path}" "$(cat "/tmp/${tmp_answer}")"
       err=$?
     fi
 
@@ -150,7 +177,7 @@ remove_key() {
   retries=3
 
   while [ "${retries}" -ge "0" ]; do
-    http_request DELETE "${etcd}/${key}"
+    etcd_delete "${key}"
     err=$?
     if [ "${err}" != "0" ]; then
       retries=$((retries - 1))

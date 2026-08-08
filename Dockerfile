@@ -24,6 +24,30 @@ RUN set -eux; \
         -ldflags "-X main.version=${LEGO_VERSION}-wodby.1" \
         -o dist/lego ./cmd/lego/
 
+FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS confd-build
+
+ARG CONFD_COMMIT=919444eb6cf721d198b2bb18581d0f0b3734d107
+ARG ETCD_CLIENT_VERSION=v3.6.14
+ARG TARGETOS
+ARG TARGETARCH
+
+RUN set -eux; \
+    apk add --no-cache git; \
+    git clone https://github.com/kelseyhightower/confd.git /src; \
+    git -C /src checkout "${CONFD_COMMIT}"; \
+    test "$(git -C /src rev-parse HEAD)" = "${CONFD_COMMIT}"
+
+COPY build/confd/client.go /src/backends/client.go
+
+RUN set -eux; \
+    cd /src; \
+    go get "go.etcd.io/etcd/client/v3@${ETCD_CLIENT_VERSION}"; \
+    go mod tidy; \
+    go mod verify; \
+    CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" go build -mod=mod -p 2 -trimpath \
+        -ldflags "-s -w" \
+        -o /confd .
+
 FROM ${NGINX_IMAGE}
 
 ARG S6_OVERLAY_VERSION=3.2.3.2
@@ -72,6 +96,7 @@ RUN set -eux; \
     rm -rf /tmp/* /var/cache/apk/*
 
 COPY --from=lego-build /src/dist/lego /opt/wodby/bin/lego
+COPY --from=confd-build /confd /opt/wodby/tools/bin/confd
 COPY rootfs /
 
 EXPOSE 80 443

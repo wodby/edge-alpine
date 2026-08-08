@@ -6,4 +6,7 @@ until pidof nginx >/dev/null; do
     sleep 1
 done
 
-exec /opt/wodby/tools/bin/confd -watch
+exec /opt/wodby/tools/bin/confd \
+    -backend etcdv3 \
+    -node "http://${WODBY_ETCD_HOST:-etcd.wodby}:${WODBY_ETCD_PORT:-2379}" \
+    -watch

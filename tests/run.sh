@@ -27,14 +27,7 @@ docker run --rm \
     "${image}" \
     dhparam -dsaparam -out /edge/dhparam.pem 2048 >/dev/null 2>&1
 
-if docker run --rm \
-    -e WODBY_BASE_DOMAIN=example.test \
-    -e WODBY_NODE_UUID=test-node \
-    -v "${test_root}/edge:/mnt/containers/edge" \
-    "${image}" >/dev/null 2>&1; then
-    echo "edge container started without the required confd mount" >&2
-    exit 1
-fi
+docker run --rm --entrypoint /opt/wodby/tools/bin/confd "${image}" -version | grep -F 'confd'
 
 docker run -d \
     --name "${container}" \
@@ -70,11 +63,11 @@ docker exec "${container}" /usr/sbin/nginx -v 2>&1 | grep -F 'nginx/1.31.3'
 docker exec "${container}" /opt/wodby/bin/lego --version | grep -F 'v4.35.2-wodby.1'
 docker exec "${container}" /bin/sh -c 'test "$(cat /proc/1/comm)" = s6-svscan'
 docker exec "${container}" /bin/sh -c 'pidof nginx >/dev/null && pidof crond >/dev/null'
-docker exec "${container}" /bin/sh -c "ps | grep -q '[c]onfd -watch'"
+docker exec "${container}" /bin/sh -c "ps | grep -q '[c]onfd .*etcdv3.*2379.*watch'"
 docker exec "${container}" /bin/sh -c '! apk info -e curl && ! apk info -e libcurl && ! apk info -e tar && ! apk info -e wget && ! apk info -e unzip'
 
 docker exec -d "${container}" /bin/busybox nc -l -p 18080 -e /usr/local/bin/test-http-server
 sleep 1
-docker exec "${container}" /bin/sh -c '. /etc/wodby/functions; printf '\''value=test-payload'\'' >/tmp/test-http-payload; http_request PUT http://127.0.0.1:18080/v2/keys/test /tmp/test-http-payload'
-docker exec "${container}" /bin/sh -c 'test "$(cat /tmp/test-http-request)" = "PUT /v2/keys/test HTTP/1.1"'
-docker exec "${container}" /bin/sh -c 'test "$(cat /tmp/test-http-body)" = "value=test-payload"'
+docker exec "${container}" /bin/sh -c '. /etc/wodby/functions; etcd="http://127.0.0.1:18080"; etcd_put test test-payload'
+docker exec "${container}" /bin/sh -c 'test "$(cat /tmp/test-http-request)" = "POST /v3/kv/put HTTP/1.1"'
+docker exec "${container}" /bin/sh -c 'test "$(cat /tmp/test-http-body)" = "{\"key\":\"L3Rlc3Q=\",\"value\":\"dGVzdC1wYXlsb2Fk\"}"'
