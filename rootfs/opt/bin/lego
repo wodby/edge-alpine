@@ -10,18 +10,31 @@ log
 
 edge_dir="/mnt/containers/edge"
 
-if [[ "${action}" = "renew" ]]; then
-    days="--days=45"
-else
-    days=""
-fi
-
-if [[ ! -f /mnt/containers/edge/accounts/acme-v02.api.letsencrypt.org/hello@wodby.com/account.json ]]; then
+if [ ! -f "${edge_dir}/accounts/acme-v02.api.letsencrypt.org/hello@wodby.com/account.json" ]; then
     action="run"
-    days=""
 fi
 
-result=$("$WODBY_BIN/lego" -a --email="${email}" --domains="${domains}" --http --http.webroot="${edge_dir}" --path="${edge_dir}" "${action}" "${days}" 2>&1)
+case "${action}" in
+    run)
+        set -- run
+        ;;
+    renew)
+        set -- renew --days=45
+        ;;
+    *)
+        result="unsupported lego action: ${action}"
+        errno=2
+        answer
+        ;;
+esac
+
+result=$("$WODBY_BIN/lego" -a \
+    --email="${email}" \
+    --domains="${domains}" \
+    --http \
+    --http.webroot="${edge_dir}" \
+    --path="${edge_dir}" \
+    "$@" 2>&1)
 
 errno=$?
 answer

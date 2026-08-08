@@ -1,0 +1,9 @@
+#!/command/with-contenv sh
+
+# Confd can request a reload as soon as its initial template is written. Start
+# watching only after nginx is able to receive that signal.
+until pidof nginx >/dev/null; do
+    sleep 1
+done
+
+exec /opt/wodby/tools/bin/confd -watch

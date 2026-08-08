@@ -1,6 +1,0 @@
-#!/usr/bin/with-contenv bash
-
-set -eo pipefail
-
-/usr/sbin/nginx -t
-/usr/sbin/nginx -s reload

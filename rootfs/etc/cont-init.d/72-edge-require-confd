@@ -1,0 +1,8 @@
+#!/command/with-contenv sh
+
+set -eu
+
+if [ ! -x /opt/wodby/tools/bin/confd ]; then
+    echo "edge: /opt/wodby/tools/bin/confd must be mounted and executable" >&2
+    exit 1
+fi

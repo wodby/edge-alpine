@@ -1,4 +1,4 @@
-#!/usr/bin/with-contenv bash
+#!/command/with-contenv bash
 
 set -eo pipefail
 
@@ -18,7 +18,7 @@ mkdir -p /etc/nginx/ssl
 
 domain="node-${WODBY_NODE_UUID}.${WODBY_BASE_DOMAIN:-wodby.cloud}"
 
-if [[ -f /mnt/containers/edge/certificates/"${domain}".key ]]; then
+if [[ -f /mnt/containers/edge/certificates/"${domain}".key && -f /mnt/containers/edge/certificates/"${domain}".crt ]]; then
   cp /mnt/containers/edge/certificates/"${domain}".key /etc/nginx/ssl/default.key
   cp /mnt/containers/edge/certificates/"${domain}".crt /etc/nginx/ssl/default.crt
 else

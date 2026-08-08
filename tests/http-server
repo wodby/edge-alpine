@@ -1,0 +1,22 @@
+#!/bin/sh
+
+request_line=""
+content_length=0
+
+while IFS= read -r line; do
+    line="$(printf '%s' "${line}" | tr -d '\r')"
+    if [ -z "${request_line}" ]; then
+        request_line="${line}"
+    fi
+    [ -n "${line}" ] || break
+    case "${line}" in
+        Content-Length:*) content_length="${line#Content-Length: }" ;;
+    esac
+done
+
+printf '%s' "${request_line}" > /tmp/test-http-request
+if [ "${content_length}" -gt 0 ]; then
+    dd bs=1 count="${content_length}" of=/tmp/test-http-body 2>/dev/null
+fi
+
+printf 'HTTP/1.1 204 No Content\r\nContent-Length: 0\r\nConnection: close\r\n\r\n'

@@ -1,178 +1,80 @@
-# Build Lego tool
-FROM golang:1.13.1-alpine
-ENV LEGO_VER="v3.1.0" \
-    CGO_ENABLED=0
-RUN set -ex; \
-    \
-    apk add --update --no-cache build-base git; \
-    git clone --branch ${LEGO_VER} --depth=1 --single-branch https://github.com/go-acme/lego.git /tmp/lego; \
-    cd /tmp/lego; \
-    make build
+ARG GO_IMAGE=golang:1.26.5-alpine3.23@sha256:622e56dbc11a8cfe87cafa2331e9a201877271cbff918af53d3be315f3da88cc
+ARG NGINX_IMAGE=wodby/nginx:1.31-5.48.5@sha256:a64c5eb7736a0c5ab6af75ae1b454c6b6b093d99b5878250f3fa671dce43d947
 
-# Build Nginx
-FROM wodby/edge-alpine:1.3.1
+FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS lego-build
 
-COPY patches /tmp/patches
+ARG LEGO_VERSION=v4.35.2
+ARG LEGO_COMMIT=537f2ed0b7946b30bcfa81c5256e7c99ba6286bb
+ARG TARGETOS
+ARG TARGETARCH
 
-ENV NGINX_VER="1.24.0" \
-    NGINX_UP_VER="0.9.1" \
-    APP_ROOT="/var/www/html" \
-    FILES_DIR="/mnt/files" \
-    NGINX_VHOST_PRESET="html" \
-    OWASP_CRS_VER="3.1.0"
+RUN set -eux; \
+    apk add --no-cache git; \
+    git clone --branch "${LEGO_VERSION}" --depth=1 https://github.com/go-acme/lego.git /src; \
+    test "$(git -C /src rev-parse HEAD)" = "${LEGO_COMMIT}"
 
-# Copy lego tool.
-COPY --from=0 /tmp/lego/dist/lego /opt/wodby/bin/
+COPY patches/lego-security.patch /tmp/lego-security.patch
 
-RUN set -ex; \
-    \
-    # Upgrade alpine
-    apk add --update busybox-static apk-tools-static; \
-    sed -i -e 's/v3\.4/v3.10/g' /etc/apk/repositories; \
-    \
-    apk.static update; \
-    apk.static upgrade --no-self-upgrade --available; \
-    \
-    apk add --update --no-cache \
-        bash \
-        ca-certificates \
-        curl \
-        gzip \
-        tar \
-        unzip \
-        wget; \
-    \
-    # Install gotpl
-    \
-    gotpl_url="https://github.com/wodby/gotpl/releases/download/0.1.5/gotpl-alpine-linux-amd64-0.1.5.tar.gz"; \
-    wget -qO- "${gotpl_url}" | tar xz -C /usr/local/bin; \
-    \
-    # Build and install nginx
-    \
-    apk add --update --no-cache -t .tools \
-        findutils \
-        make \
-        nghttp2 \
-        sudo; \
-    \
-    apk add --update --no-cache -t .nginx-build-deps \
-        apr-dev \
-        apr-util-dev \
-        build-base \
-        gd-dev \
-        git \
-        gnupg \
-        gperf \
-        icu-dev \
-        libjpeg-turbo-dev \
-        libpng-dev \
-        libressl-dev \
-        libtool \
-        libxslt-dev \
-        linux-headers \
-        pcre-dev \
-        zlib-dev; \
-     \
-    # Get ngx uploadprogress module.
-    mkdir -p /tmp/ngx_http_uploadprogress_module; \
-    url="https://github.com/masterzen/nginx-upload-progress-module/archive/v${NGINX_UP_VER}.tar.gz"; \
-    wget -qO- "${url}" | tar xz --strip-components=1 -C /tmp/ngx_http_uploadprogress_module; \
-    if [[ -d "/tmp/patches" ]]; then \
-        cd /tmp/ngx_http_uploadprogress_module; \
-        patch -p1 -i "/tmp/patches/uploadprogress.patch"; \
-    fi; \    
-    \
-    # Download nginx.
-    curl -fSL "https://nginx.org/download/nginx-${NGINX_VER}.tar.gz" -o /tmp/nginx.tar.gz; \
-    curl -fSL "https://nginx.org/download/nginx-${NGINX_VER}.tar.gz.asc"  -o /tmp/nginx.tar.gz.asc; \
-    tar zxf /tmp/nginx.tar.gz -C /tmp; \
-    \
-    cd "/tmp/nginx-${NGINX_VER}"; \
-    ./configure \
-        --prefix=/usr/share/nginx \
-        --sbin-path=/usr/sbin/nginx \
-        --modules-path=/usr/lib/nginx/modules \
-        --conf-path=/etc/nginx/nginx.conf \
-        --pid-path=/var/run/nginx/nginx.pid \
-        --lock-path=/var/run/nginx/nginx.lock \
-        --http-client-body-temp-path=/var/cache/nginx/client_temp \
-        --http-proxy-temp-path=/var/cache/nginx/proxy_temp \
-        --http-fastcgi-temp-path=/var/cache/nginx/fastcgi_temp \
-        --http-uwsgi-temp-path=/var/cache/nginx/uwsgi_temp \
-        --http-scgi-temp-path=/var/cache/nginx/scgi_temp \
-        --user=nginx \
-        --group=nginx \
-        --with-compat \
-        --with-file-aio \
-        --with-http_addition_module \
-        --with-http_auth_request_module \
-        --with-http_dav_module \
-        --with-http_flv_module \
-        --with-http_gunzip_module \
-        --with-http_gzip_static_module \
-		--with-http_image_filter_module=dynamic \
-        --with-http_mp4_module \
-        --with-http_random_index_module \
-        --with-http_realip_module \
-        --with-http_secure_link_module \
-		--with-http_slice_module \
-        --with-http_ssl_module \
-        --with-http_stub_status_module \
-        --with-http_sub_module \
-        --with-http_v2_module \
-		--with-http_xslt_module=dynamic \
-        --with-ipv6 \
-        --with-ld-opt="-Wl,-z,relro,--start-group -lapr-1 -laprutil-1 -licudata -licuuc -lpng -lturbojpeg -ljpeg" \
-        --with-mail \
-        --with-mail_ssl_module \
-        --with-pcre-jit \
-        --with-stream \
-        --with-stream_ssl_module \
-		--with-stream_ssl_preread_module \
-		--with-stream_realip_module \
-        --with-threads \
-        --add-module=/tmp/ngx_http_uploadprogress_module ; \
-    \
-    make -j$(getconf _NPROCESSORS_ONLN); \
-    make install; \
-    mkdir -p /usr/share/nginx/modules; \
-    \
-    install -g wodby -o wodby -d \
-        "${APP_ROOT}" \
-        "${FILES_DIR}" \
-        /etc/nginx/conf.d \
-        /var/cache/nginx \
-        /var/lib/nginx; \
-    \
-    touch /etc/nginx/upstream.conf; \
-    \
-    install -m 400 -d /etc/nginx/pki; \
-    strip /usr/sbin/nginx*; \
-    strip /usr/lib/nginx/modules/*.so; \
-    \
-    for i in /usr/lib/nginx/modules/*.so; do ln -s "${i}" /usr/share/nginx/modules/; done; \
-    \
-	runDeps="$( \
-		scanelf --needed --nobanner --format '%n#p' /usr/sbin/nginx /usr/lib/nginx/modules/*.so /tmp/envsubst \
-			| tr ',' '\n' \
-			| sort -u \
-			| awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
-	)"; \
-	apk add --no-cache --virtual .nginx-rundeps $runDeps; \
-    \
-    apk del --purge .nginx-build-deps; \
-    rm -rf \
-        /tmp/* \
-        /var/cache/apk/* \
-    \
-    # Remove wrong-named init script from base layer.
-    rm /etc/cont-init.d/70-wodby-edge-hdparam; \
-    \
-    # Clear old default certificate.
-    rm /etc/nginx/ssl/nginx.crt; \
-    rm /etc/nginx/ssl/nginx.key; \
-    # Clear crontabs.
-    rm -rf /etc/periodic; \
-    rm -rf /etc/crontabs
+RUN set -eux; \
+    cd /src; \
+    git apply --unidiff-zero /tmp/lego-security.patch; \
+    go mod tidy; \
+    go mod verify; \
+    CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" go build -p 2 -trimpath \
+        -ldflags "-X main.version=${LEGO_VERSION}-wodby.1" \
+        -o dist/lego ./cmd/lego/
 
+FROM ${NGINX_IMAGE}
+
+ARG S6_OVERLAY_VERSION=3.2.3.2
+ARG TARGETARCH
+
+ENV S6_BEHAVIOUR_IF_STAGE2_FAILS=2 \
+    S6_KEEP_ENV=1 \
+    S6_LOGGING=0 \
+    WODBY_USER=wodby \
+    WODBY_GROUP=wodby \
+    WODBY_GUID=41532 \
+    WODBY_HOME=/srv \
+    WODBY_OPT=/opt/wodby \
+    WODBY_REPO=/srv/repo \
+    WODBY_FILES=/srv/files \
+    WODBY_BACKUPS=/srv/backups \
+    WODBY_LOGS=/srv/logs \
+    WODBY_CONF=/srv/conf \
+    WODBY_BUILD=/srv/.build \
+    WODBY_DOCROOT=/srv/repo/static \
+    WODBY_BIN=/opt/wodby/bin
+
+USER root
+
+RUN set -eux; \
+    apk upgrade --no-cache; \
+    apk del .tools; \
+    apk add --no-cache openssl; \
+    apk add --no-cache --virtual .edge-build-deps xz; \
+    case "${TARGETARCH:-$(apk --print-arch)}" in \
+        amd64|x86_64) s6_arch=x86_64 ;; \
+        arm64|aarch64) s6_arch=aarch64 ;; \
+        *) echo "Unsupported architecture: ${TARGETARCH:-$(apk --print-arch)}" >&2; exit 1 ;; \
+    esac; \
+    cd /tmp; \
+    for archive in s6-overlay-noarch.tar.xz "s6-overlay-${s6_arch}.tar.xz"; do \
+        url="https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/${archive}"; \
+        curl -fsSLO "${url}"; \
+        curl -fsSLO "${url}.sha256"; \
+        sha256sum -c "${archive}.sha256"; \
+        tar -C / -Jxpf "${archive}"; \
+    done; \
+    install -d /etc/wodby /mnt/containers/edge /opt/wodby/bin; \
+    apk del .edge-build-deps; \
+    apk del 7zip curl gzip tar unzip wget; \
+    rm -rf /tmp/* /var/cache/apk/*
+
+COPY --from=lego-build /src/dist/lego /opt/wodby/bin/lego
 COPY rootfs /
+
+EXPOSE 80 443
+
+ENTRYPOINT ["/init"]
+CMD []

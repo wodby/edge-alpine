@@ -1,4 +1,4 @@
-#!/usr/bin/with-contenv bash
+#!/command/with-contenv bash
 
 set -eo pipefail
 
@@ -8,4 +8,5 @@ if [[ ! -f /mnt/containers/edge/dhparam.pem ]]; then
     chmod 400 /mnt/containers/edge/dhparam.pem
 fi
 
+install -d -m 700 /etc/nginx/pki
 cp /mnt/containers/edge/dhparam.pem /etc/nginx/pki/dhparam.pem

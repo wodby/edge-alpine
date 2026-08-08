@@ -3,7 +3,7 @@
 set -e
 
 if [[ "${GITHUB_REF}" == refs/heads/master || "${GITHUB_REF}" == refs/tags/* ]]; then
-    docker login -u "${DOCKER_USERNAME}" -p "${DOCKER_PASSWORD}"
+    printf '%s' "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
 
     if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
       export TAGS="${GITHUB_REF##*/}"

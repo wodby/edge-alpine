@@ -1,0 +1,170 @@
+http_request() {
+  local method url body_file rest authority host port path content_length response err
+  method="$1"
+  url="$2"
+  body_file="${3:-}"
+
+  case "${url}" in
+    http://*) rest="${url#http://}" ;;
+    *) return 2 ;;
+  esac
+
+  authority="${rest%%/*}"
+  if [ "${authority}" = "${rest}" ]; then
+    path="/"
+  else
+    path="/${rest#*/}"
+  fi
+
+  case "${authority}" in
+    *:*)
+      host="${authority%%:*}"
+      port="${authority##*:}"
+      ;;
+    *)
+      host="${authority}"
+      port="80"
+      ;;
+  esac
+
+  content_length=0
+  if [ -n "${body_file}" ]; then
+    [ -f "${body_file}" ] || return 2
+    content_length="$(wc -c <"${body_file}" | tr -d ' ')"
+  fi
+
+  response="/tmp/http-response-$(cat /proc/sys/kernel/random/uuid)"
+  {
+    printf '%s %s HTTP/1.1\r\n' "${method}" "${path}"
+    printf 'Host: %s\r\n' "${authority}"
+    printf 'Content-Length: %s\r\n' "${content_length}"
+    if [ "${content_length}" -gt 0 ]; then
+      printf 'Content-Type: application/x-www-form-urlencoded\r\n'
+    fi
+    printf 'Connection: close\r\n\r\n'
+    if [ "${content_length}" -gt 0 ]; then
+      cat "${body_file}"
+    fi
+  } | nc -w 3 "${host}" "${port}" >"${response}"
+  err=$?
+  rm -f "${response}"
+  return "${err}"
+}
+
+answer() {
+  local tmp_answer retries err
+  tmp_answer="$(cat /proc/sys/kernel/random/uuid)"
+  retries=3
+  state_uuid="${state_uuid:-0}"
+  errno="${errno:-0}"
+  result="${result:-ok}"
+
+  if echo "${result}" | grep 'Permanently added the RSA host key' >/dev/null 2>&1; then
+    result='ok'
+  fi
+
+  result="$(printf '%s' "${result}" | sed -e ':a;N;$!ba;s/\\/\\\\/g;s/%/%25/g;s/\;/%3B/g;s/&/%26/g;s/+/%2B/g;s/"/\\"/g;s/\f/\\f/g;s/\t/\\t/g;s/\r/\\r/g;s/\n/\\n/g')"
+  result="$(printf '%s' "${result}" | sed -e 's/\t/\\t/g')"
+
+  if [ "${errno}" != "0" ]; then
+    log 'processed with error'
+    if [ "${is_backend}" = "0" ]; then
+      printf '{"type":"response","state_uuid":"%s","namespace":"%s","hostname":"%s","task":"%s","error":{"errno":"%s","message":"%s"}}' "${state_uuid}" "${WODBY_NAMESPACE}" "${HOSTNAME}" "${0##*/}" "${errno}" "${result}" >"/tmp/${tmp_answer}"
+    else
+      printf 'value={"type":"response","state_uuid":"%s","namespace":"%s","hostname":"%s","task":"%s","error":{"errno":"%s","message":"%s"}}' "${state_uuid}" "${WODBY_NAMESPACE}" "${HOSTNAME}" "${0##*/}" "${errno}" "${result}" >"/tmp/${tmp_answer}"
+    fi
+  else
+    log 'processed with result'
+    if [ "${is_backend}" = "0" ]; then
+      printf '{"type":"response","state_uuid":"%s","namespace":"%s","hostname":"%s","task":"%s","result":"%s"}' "${state_uuid}" "${WODBY_NAMESPACE}" "${HOSTNAME}" "${0##*/}" "${result}" >"/tmp/${tmp_answer}"
+    else
+      printf 'value={"type":"response","state_uuid":"%s","namespace":"%s","hostname":"%s","task":"%s","result":"%s"}' "${state_uuid}" "${WODBY_NAMESPACE}" "${HOSTNAME}" "${0##*/}" "${result}" >"/tmp/${tmp_answer}"
+    fi
+  fi
+
+  unset_lock
+  while [ "${retries}" -ge "0" ]; do
+    if [ "${is_backend}" = "0" ]; then
+      nc -w 3 "${backend_host}" "${backend_port}" <"/tmp/${tmp_answer}"
+      err=$?
+    else
+      http_request PUT "${etcd}/${response_path}" "/tmp/${tmp_answer}"
+      err=$?
+    fi
+
+    if [ "${err}" != "0" ]; then
+      retries=$((retries - 1))
+      sleep 1
+      continue
+    fi
+    break
+  done
+
+  if [ "${err}" != "0" ]; then
+    log 'answer was not sent due to error'
+  else
+    log 'answer was sent'
+  fi
+
+  rm -f "/tmp/${tmp_answer}"
+  [ "${errno}" != "0" ] && exit 1
+}
+
+log() {
+  local tmp_answer retries err message
+  tmp_answer="$(cat /proc/sys/kernel/random/uuid)"
+  retries=3
+  state_uuid="${state_uuid:-0}"
+  message="${1:-received}"
+
+  if [ "${is_backend}" = "0" ]; then
+    printf '{"type":"log","log":{"message_uuid":"%s","data":{"namespace":"%s","hostname":"%s","task":"%s"},"message":"%s","severity":200,"type":"iaas.%s"}}' "${state_uuid}" "${WODBY_NAMESPACE}" "${HOSTNAME}" "${0##*/}" "${message}" "${0##*/}" >"/tmp/${tmp_answer}"
+  else
+    printf 'value={"type":"log","log":{"message_uuid":"%s","data":{"namespace":"%s","hostname":"%s","task":"%s"},"message":"%s","severity":200,"type":"iaas.%s"}}' "${state_uuid}" "${WODBY_NAMESPACE}" "${HOSTNAME}" "${0##*/}" "${message}" "${0##*/}" >"/tmp/${tmp_answer}"
+  fi
+
+  while [ "${retries}" -ge "0" ]; do
+    if [ "${is_backend}" = "0" ]; then
+      nc -w 3 "${backend_host}" "${backend_port}" <"/tmp/${tmp_answer}"
+      err=$?
+    else
+      http_request PUT "${etcd}/${response_path}" "/tmp/${tmp_answer}"
+      err=$?
+    fi
+
+    if [ "${err}" != "0" ]; then
+      retries=$((retries - 1))
+      sleep 1
+      continue
+    fi
+    break
+  done
+
+  rm -f "/tmp/${tmp_answer}"
+}
+
+remove_key() {
+  local key err retries
+  [ -n "${1:-}" ] || return 1
+  key="$1"
+  retries=3
+
+  while [ "${retries}" -ge "0" ]; do
+    http_request DELETE "${etcd}/${key}"
+    err=$?
+    if [ "${err}" != "0" ]; then
+      retries=$((retries - 1))
+      sleep 1
+      continue
+    fi
+    break
+  done
+
+  [ "${err}" = "0" ]
+}
+
+unset_lock() {
+  local lock_name
+  lock_name="${1:-${lockdir}/${0##*/}_${state_uuid}.lock}"
+  rm -f "${lock_name}"
+}

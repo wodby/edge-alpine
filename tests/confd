@@ -1,0 +1,8 @@
+#!/bin/sh
+
+trap 'exit 0' INT TERM
+
+while :; do
+    sleep 3600 &
+    wait "$!"
+done

@@ -3,13 +3,24 @@
 set -eo pipefail
 
 domain="node-${WODBY_NODE_UUID}.${WODBY_BASE_DOMAIN:-wodby.cloud}"
+edge_dir="/mnt/containers/edge"
+cert="${edge_dir}/certificates/${domain}.crt"
+key="${edge_dir}/certificates/${domain}.key"
 
-if [[ -f /mnt/containers/edge/certificates/"${domain}".key ]]; then
-  /opt/wodby/bin/lego -a --email="hello@wodby.com" --domains="${domain}" --http --http.webroot=/mnt/containers/edge --path=/mnt/containers/edge renew --days=45
+if [[ ! -f "${key}" || ! -f "${cert}" ]]; then
+  exec /opt/bin/default_cert_create
 fi
 
-cp /mnt/containers/edge/certificates/"${domain}".key /etc/nginx/ssl/default.key
-cp /mnt/containers/edge/certificates/"${domain}".crt /etc/nginx/ssl/default.crt
+/opt/wodby/bin/lego -a \
+  --email="hello@wodby.com" \
+  --domains="${domain}" \
+  --http \
+  --http.webroot="${edge_dir}" \
+  --path="${edge_dir}" \
+  renew --days=45
+
+install -m 400 "${key}" /etc/nginx/ssl/default.key
+install -m 400 "${cert}" /etc/nginx/ssl/default.crt
 
 /usr/sbin/nginx -t
 /usr/sbin/nginx -s reload

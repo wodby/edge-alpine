@@ -1,0 +1,24 @@
+user="wodby"
+srv="${WODBY_HOME:-/srv}"
+wodby_home="${srv}"
+state_uuid="0"
+repo="${srv}/.repo"
+docroot="${WODBY_APP_DOCROOT:-}"
+lockdir="${srv}/.wodby/locks"
+etcd_ip="etcd.wodby"
+etcd="http://${etcd_ip}:4001/v2/keys"
+backend_host="wodby-svc.wodby"
+backend_port="8125"
+backend_prefix="http://"
+
+if [ -n "${backend_host}" ] && [ -n "${backend_port}" ]; then
+  backend="${backend_prefix}${backend_host}:${backend_port}"
+  is_backend=0
+else
+  backend="${etcd}"
+  is_backend=1
+fi
+
+response_path="wodby/states/result"
+: "${WODBY_APP_TYPE:=drupal}"
+: "${WODBY_APP_VERSION:=7}"
