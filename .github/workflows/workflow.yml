@@ -16,6 +16,7 @@ permissions:
 env:
   DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
   DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  TAGS: latest
 
 jobs:
   build:
@@ -23,5 +24,17 @@ jobs:
     steps:
     - uses: actions/checkout@v6
     - uses: ./.github/actions
+    - name: Scan image
+      if: github.event_name != 'pull_request'
+      uses: docker/scout-action@v1
       with:
-        tags: latest
+        command: cves
+        image: local://wodby/edge-alpine:latest
+        only-severities: critical,high
+        exit-code: true
+        write-comment: false
+        dockerhub-user: ${{ secrets.DOCKER_USERNAME }}
+        dockerhub-password: ${{ secrets.DOCKER_PASSWORD }}
+    - name: Release image
+      if: github.event_name != 'pull_request'
+      run: ./.github/actions/release.sh
