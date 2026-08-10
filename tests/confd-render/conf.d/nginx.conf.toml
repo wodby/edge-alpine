@@ -1,0 +1,7 @@
+[template]
+prefix = "/wodby/services/edge"
+src = "../../../../etc/confd/templates/nginx.conf.tmpl"
+dest = "/tmp/nginx.conf"
+keys = [
+  "/http",
+]

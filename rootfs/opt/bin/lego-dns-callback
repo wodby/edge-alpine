@@ -1,0 +1,31 @@
+#!/bin/sh
+
+set -eu
+
+action="${1:-}"
+fqdn="${2:-}"
+value="${3:-}"
+
+case "${action}" in
+    present|cleanup) ;;
+    *) echo "unsupported ACME DNS callback action" >&2; exit 2 ;;
+esac
+
+case "${fqdn}" in
+    ''|*[!A-Za-z0-9._-]*) echo "invalid ACME DNS record name" >&2; exit 2 ;;
+esac
+
+case "${value}" in
+    ''|*[!A-Za-z0-9_-]*) echo "invalid ACME DNS challenge value" >&2; exit 2 ;;
+esac
+
+: "${dns_callback_url:?ACME DNS callback URL is required}"
+: "${dns_callback_token:?ACME DNS callback token is required}"
+
+body=$(printf '{"token":"%s","action":"%s","fqdn":"%s","value":"%s"}' \
+    "${dns_callback_token}" "${action}" "${fqdn}" "${value}")
+
+exec /bin/busybox wget -q -O /dev/null -T 150 \
+    --header='Content-Type: application/json' \
+    --post-data="${body}" \
+    "${dns_callback_url}"

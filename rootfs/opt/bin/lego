@@ -10,31 +10,85 @@ log
 
 edge_dir="/mnt/containers/edge"
 
-if [ ! -f "${edge_dir}/accounts/acme-v02.api.letsencrypt.org/hello@wodby.com/account.json" ]; then
-    action="run"
+if [ "${challenge:-http}" = "dns" ]; then
+    : "${domain:?technical certificate domain is required}"
+    : "${dns_callback_url:?ACME DNS callback URL is required}"
+    : "${dns_callback_token:?ACME DNS callback token is required}"
+    export dns_callback_url dns_callback_token
+
+    case "${action}" in
+        ensure)
+            if [ -f "${edge_dir}/certificates/${domain}.crt" ] \
+                && [ -f "${edge_dir}/certificates/${domain}.key" ]; then
+                action="renew"
+            else
+                action="run"
+            fi
+            ;;
+        renew)
+            if [ ! -f "${edge_dir}/certificates/${domain}.crt" ] \
+                || [ ! -f "${edge_dir}/certificates/${domain}.key" ]; then
+                action="run"
+            fi
+            ;;
+    esac
+
+    case "${action}" in
+        run)
+            set -- run
+            ;;
+        renew)
+            set -- renew --days=45 --no-random-sleep --force-cert-domains
+            ;;
+        *)
+            result="unsupported DNS lego action: ${action}"
+            errno=2
+            answer
+            ;;
+    esac
+
+    result=$(EXEC_PATH=/opt/bin/lego-dns-callback \
+        EXEC_PROPAGATION_TIMEOUT=180 \
+        EXEC_POLLING_INTERVAL=4 \
+        EXEC_SEQUENCE_INTERVAL=2 \
+        "$WODBY_BIN/lego" -a \
+        --email="${email}" \
+        --domains="${domain}" \
+        --domains="*.${domain}" \
+        --dns=exec \
+        --path="${edge_dir}" \
+        "$@" 2>&1)
+else
+    if [ "${action}" != "revoke" ] \
+        && [ ! -f "${edge_dir}/accounts/acme-v02.api.letsencrypt.org/hello@wodby.com/account.json" ]; then
+        action="run"
+    fi
+
+    case "${action}" in
+        run)
+            set -- run
+            ;;
+        renew)
+            set -- renew --days=45 --no-random-sleep
+            ;;
+        revoke)
+            set -- revoke
+            ;;
+        *)
+            result="unsupported lego action: ${action}"
+            errno=2
+            answer
+            ;;
+    esac
+
+    result=$("$WODBY_BIN/lego" -a \
+        --email="${email}" \
+        --domains="${domains}" \
+        --http \
+        --http.webroot="${edge_dir}" \
+        --path="${edge_dir}" \
+        "$@" 2>&1)
 fi
-
-case "${action}" in
-    run)
-        set -- run
-        ;;
-    renew)
-        set -- renew --days=45
-        ;;
-    *)
-        result="unsupported lego action: ${action}"
-        errno=2
-        answer
-        ;;
-esac
-
-result=$("$WODBY_BIN/lego" -a \
-    --email="${email}" \
-    --domains="${domains}" \
-    --http \
-    --http.webroot="${edge_dir}" \
-    --path="${edge_dir}" \
-    "$@" 2>&1)
 
 errno=$?
 answer
