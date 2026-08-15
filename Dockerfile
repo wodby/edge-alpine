@@ -118,6 +118,9 @@ RUN set -eux; \
     apk del 7zip curl gzip tar unzip wget; \
     rm -rf /tmp/* /var/cache/apk/*
 
+# Record a whiteout so layer-aware scanners discard the inherited vulnerable binary.
+RUN rm /usr/local/bin/gotpl
+
 COPY --from=lego-build /src/dist/lego /opt/wodby/bin/lego
 COPY --from=confd-build /confd /opt/wodby/tools/bin/confd
 COPY --from=gotpl-build /gotpl /usr/local/bin/gotpl
