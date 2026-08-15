@@ -1,10 +1,11 @@
-ARG GO_IMAGE=golang:1.26.5-alpine3.23@sha256:622e56dbc11a8cfe87cafa2331e9a201877271cbff918af53d3be315f3da88cc
+ARG GO_IMAGE=golang:1.26.6-alpine3.23@sha256:5978cc992ad5ef96a7469713c8af849c1433824761ce3be2c56381403cd8d9a3
 ARG NGINX_IMAGE=wodby/nginx:1.31-5.48.5@sha256:a64c5eb7736a0c5ab6af75ae1b454c6b6b093d99b5878250f3fa671dce43d947
 
 FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS lego-build
 
 ARG LEGO_VERSION=v4.35.2
 ARG LEGO_COMMIT=537f2ed0b7946b30bcfa81c5256e7c99ba6286bb
+ARG GO_NET_VERSION=v0.56.0
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -18,6 +19,7 @@ COPY patches/lego-security.patch /tmp/lego-security.patch
 RUN set -eux; \
     cd /src; \
     git apply --unidiff-zero /tmp/lego-security.patch; \
+    go get "golang.org/x/net@${GO_NET_VERSION}"; \
     go mod tidy; \
     go mod verify; \
     CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" go build -p 2 -trimpath \
@@ -28,6 +30,7 @@ FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS confd-build
 
 ARG CONFD_COMMIT=919444eb6cf721d198b2bb18581d0f0b3734d107
 ARG ETCD_CLIENT_VERSION=v3.6.14
+ARG GO_NET_VERSION=v0.56.0
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -42,11 +45,31 @@ COPY build/confd/client.go /src/backends/client.go
 RUN set -eux; \
     cd /src; \
     go get "go.etcd.io/etcd/client/v3@${ETCD_CLIENT_VERSION}"; \
+    go get "golang.org/x/net@${GO_NET_VERSION}"; \
     go mod tidy; \
     go mod verify; \
     CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" go build -mod=mod -p 2 -trimpath \
         -ldflags "-s -w" \
         -o /confd .
+
+FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS gotpl-build
+
+ARG GOTPL_COMMIT=bfc4b3b915640f1ef74953d2a30d0d5dd9a16b9f
+ARG TARGETOS
+ARG TARGETARCH
+
+RUN set -eux; \
+    apk add --no-cache git; \
+    git clone https://github.com/wodby/gotpl.git /src; \
+    git -C /src checkout "${GOTPL_COMMIT}"; \
+    test "$(git -C /src rev-parse HEAD)" = "${GOTPL_COMMIT}"
+
+RUN set -eux; \
+    cd /src; \
+    go mod verify; \
+    CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" go build -p 2 -trimpath \
+        -ldflags "-s -w" \
+        -o /gotpl .
 
 FROM ${NGINX_IMAGE}
 
@@ -97,6 +120,7 @@ RUN set -eux; \
 
 COPY --from=lego-build /src/dist/lego /opt/wodby/bin/lego
 COPY --from=confd-build /confd /opt/wodby/tools/bin/confd
+COPY --from=gotpl-build /gotpl /usr/local/bin/gotpl
 COPY rootfs /
 
 EXPOSE 80 443
