@@ -85,6 +85,9 @@ docker exec "${container}" /usr/sbin/nginx -v 2>&1 | grep -F 'nginx/1.31.3'
 docker exec "${container}" /opt/wodby/bin/lego --version | grep -F 'v4.35.2-wodby.1'
 docker exec "${container}" /bin/sh -c 'test "$(cat /proc/1/comm)" = s6-svscan'
 docker exec "${container}" /bin/sh -c 'pidof nginx >/dev/null && pidof crond >/dev/null'
+docker exec "${container}" /bin/sh -c 'test -x /command/with-contenv'
+docker exec "${container}" grep -F '/command/with-contenv /opt/bin/default_cert_create' /etc/crontabs/root >/dev/null
+docker exec "${container}" grep -F '/command/with-contenv /opt/bin/default_cert_renew' /etc/crontabs/root >/dev/null
 docker exec "${container}" /bin/sh -c "ps | grep -q '[c]onfd .*etcdv3.*2379.*watch'"
 docker exec "${container}" /bin/sh -c '! apk info -e curl && ! apk info -e libcurl && ! apk info -e tar && ! apk info -e wget && ! apk info -e unzip'
 docker exec "${container}" /bin/sh -n /opt/bin/lego-dns-callback
