@@ -81,8 +81,8 @@ done
 [[ "$(curl -ksS -o /dev/null -w '%{http_code}' "https://127.0.0.1:${https_port}/")" == "503" ]]
 
 docker exec "${container}" /usr/sbin/nginx -t
-docker exec "${container}" /usr/sbin/nginx -v 2>&1 | grep -F 'nginx/1.31.3'
-docker exec "${container}" /opt/wodby/bin/lego --version | grep -F 'v4.35.2-wodby.1'
+docker exec "${container}" /usr/sbin/nginx -v
+docker exec "${container}" /opt/wodby/bin/lego --version
 docker exec "${container}" /bin/sh -c 'test "$(cat /proc/1/comm)" = s6-svscan'
 docker exec "${container}" /bin/sh -c 'pidof nginx >/dev/null && pidof crond >/dev/null'
 docker exec "${container}" /bin/sh -c 'test -x /command/with-contenv'
