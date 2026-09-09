@@ -5,7 +5,9 @@ FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS lego-build
 
 ARG LEGO_VERSION=v4.35.2
 ARG LEGO_COMMIT=537f2ed0b7946b30bcfa81c5256e7c99ba6286bb
-ARG GO_NET_VERSION=v0.56.0
+ARG GO_CRYPTO_VERSION=v0.56.0
+ARG GO_NET_VERSION=v0.58.0
+ARG GO_GRPC_VERSION=v1.83.2
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -19,7 +21,10 @@ COPY patches/lego-security.patch /tmp/lego-security.patch
 RUN set -eux; \
     cd /src; \
     git apply --unidiff-zero /tmp/lego-security.patch; \
-    go get "golang.org/x/net@${GO_NET_VERSION}"; \
+    go get \
+        "golang.org/x/crypto@${GO_CRYPTO_VERSION}" \
+        "golang.org/x/net@${GO_NET_VERSION}" \
+        "google.golang.org/grpc@${GO_GRPC_VERSION}"; \
     go mod tidy; \
     go mod verify; \
     CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" go build -p 2 -trimpath \
@@ -30,7 +35,9 @@ FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS confd-build
 
 ARG CONFD_COMMIT=919444eb6cf721d198b2bb18581d0f0b3734d107
 ARG ETCD_CLIENT_VERSION=v3.6.14
-ARG GO_NET_VERSION=v0.56.0
+ARG GO_CRYPTO_VERSION=v0.56.0
+ARG GO_NET_VERSION=v0.58.0
+ARG GO_GRPC_VERSION=v1.83.2
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -45,7 +52,10 @@ COPY build/confd/client.go /src/backends/client.go
 RUN set -eux; \
     cd /src; \
     go get "go.etcd.io/etcd/client/v3@${ETCD_CLIENT_VERSION}"; \
-    go get "golang.org/x/net@${GO_NET_VERSION}"; \
+    go get \
+        "golang.org/x/crypto@${GO_CRYPTO_VERSION}" \
+        "golang.org/x/net@${GO_NET_VERSION}" \
+        "google.golang.org/grpc@${GO_GRPC_VERSION}"; \
     go mod tidy; \
     go mod verify; \
     CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" go build -mod=mod -p 2 -trimpath \
