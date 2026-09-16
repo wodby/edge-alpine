@@ -108,6 +108,15 @@ USER root
 RUN set -eux; \
     apk upgrade --no-cache; \
     apk del .tools; \
+    # Edge does not use the dynamic image filter; drop its image decoding libraries.
+    apk add --no-cache --virtual .edge-dependency-tools pax-utils; \
+    rm /usr/lib/nginx/modules/ngx_http_image_filter_module.so \
+        /usr/share/nginx/modules/ngx_http_image_filter_module.so; \
+    run_deps="$(scanelf --needed --nobanner --format '%n#p' \
+        /usr/sbin/nginx /usr/lib/nginx/modules/*.so \
+        | tr ',' '\n' | sort -u | sed 's/^/so:/')"; \
+    apk add --no-cache --virtual .edge-nginx-rundeps $run_deps; \
+    apk del .nginx-rundeps .edge-dependency-tools; \
     apk add --no-cache openssl; \
     apk add --no-cache --virtual .edge-build-deps xz; \
     case "${TARGETARCH:-$(apk --print-arch)}" in \
