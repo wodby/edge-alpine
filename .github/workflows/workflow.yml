@@ -32,7 +32,6 @@ jobs:
         image=$(make --no-print-directory -s image-ref)
         echo "image=$(docker image inspect --format '{{.Id}}' "$image")" >> "$GITHUB_OUTPUT"
     - name: Scan image
-      if: github.event_name == 'push'
       uses: ./.github/actions/grype
       with:
         image: docker:${{ steps.build-image.outputs.image }}
