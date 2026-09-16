@@ -23,18 +23,25 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v6
+    - name: Check scanned-image publication
+      run: python3 tests/scout-release.py
     - uses: ./.github/actions
+    - name: Select built image
+      id: build-image
+      run: |
+        image=$(make --no-print-directory -s image-ref)
+        echo "image=$(docker image inspect --format '{{.Id}}' "$image")" >> "$GITHUB_OUTPUT"
     - name: Scan image
-      if: github.event_name != 'pull_request'
-      uses: docker/scout-action@v1
+      if: github.event_name == 'push'
+      uses: ./.github/actions/scout
       with:
-        command: cves
-        image: local://wodby/edge-alpine:latest
-        only-severities: critical,high
-        exit-code: true
-        write-comment: false
+        image: local://${{ steps.build-image.outputs.image }}
+        # Preserve the existing policy, including vulnerabilities without a fix.
+        only-fixed: 'false'
         dockerhub-user: ${{ secrets.DOCKER_USERNAME }}
         dockerhub-password: ${{ secrets.DOCKER_PASSWORD }}
     - name: Release image
-      if: github.event_name != 'pull_request'
+      if: github.event_name == 'push'
+      env:
+        SCANNED_IMAGE: ${{ steps.build-image.outputs.image }}
       run: ./.github/actions/release.sh
