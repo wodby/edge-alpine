@@ -24,7 +24,7 @@ jobs:
     steps:
     - uses: actions/checkout@v6
     - name: Check scanned-image publication
-      run: python3 tests/scout-release.py
+      run: python3 tests/scanned-image-release.py
     - uses: ./.github/actions
     - name: Select built image
       id: build-image
@@ -33,13 +33,11 @@ jobs:
         echo "image=$(docker image inspect --format '{{.Id}}' "$image")" >> "$GITHUB_OUTPUT"
     - name: Scan image
       if: github.event_name == 'push'
-      uses: ./.github/actions/scout
+      uses: ./.github/actions/grype
       with:
-        image: local://${{ steps.build-image.outputs.image }}
+        image: docker:${{ steps.build-image.outputs.image }}
         # Preserve the existing policy, including vulnerabilities without a fix.
         only-fixed: 'false'
-        dockerhub-user: ${{ secrets.DOCKER_USERNAME }}
-        dockerhub-password: ${{ secrets.DOCKER_PASSWORD }}
     - name: Release image
       if: github.event_name == 'push'
       env:
