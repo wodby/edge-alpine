@@ -4,6 +4,13 @@ This image is the Wodby 1 node ingress. It watches the Wodby etcd v3
 configuration with its bundled `confd` binary, manages ACME certificates,
 and proxies ports 80 and 443 to application containers.
 
+## Image revisions
+
+Use image revision tags such as `wodby/edge-alpine:rN` to select a Wodby image revision.
+Image revisions start at `r0` and increase with each release.
+See [release tags](https://github.com/wodby/edge-alpine/tags) for available revisions and the [image revision policy](https://github.com/wodby/images#image-revisions) for upgrade guidance.
+Previously published image tags remain available.
+
 ## Image architecture
 
 - Nginx and its modules come from the maintained
