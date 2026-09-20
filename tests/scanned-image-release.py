@@ -13,7 +13,7 @@ BASE = "master"
 ALIASES = ['latest']
 
 
-def check(ref, platforms="linux/amd64,linux/arm64", missing=False, fail_push=False):
+def check(ref, platforms="linux/amd64,linux/arm64", missing=False, fail_push=False, invalid=False):
     """Run the real release script with a recording Docker executable."""
     with tempfile.TemporaryDirectory() as directory:
         directory = Path(directory)
@@ -46,6 +46,9 @@ elif args[0] not in ["tag", "push"] and args[:3] != ["buildx", "imagetools", "cr
         result = subprocess.run(["bash", ".github/actions/release.sh"], cwd=ROOT,
                                 env=env, text=True, capture_output=True)
         commands = [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
+        if invalid:
+            assert result.returncode != 0 and not commands, (result, commands)
+            return
         if ref != "refs/heads/" + BASE and not ref.startswith("refs/tags/"):
             assert result.returncode == 0 and not commands, (result, commands)
             return
@@ -79,7 +82,8 @@ elif args[0] not in ["tag", "push"] and args[:3] != ["buildx", "imagetools", "cr
 
 check("refs/heads/" + BASE)
 check("refs/tags/9.8.7")
-check("refs/tags/r23")
+for tag in ("r0", "r1", "r23", "3.0.12-rc1", "3.0.12.1", "03.0.12", "v3.0.12"):
+    check("refs/tags/" + tag, invalid=True)
 check("refs/pull/123/merge")
 check("refs/heads/feature/test")
 check("refs/heads/" + BASE, missing=True)
@@ -87,5 +91,4 @@ check("refs/heads/" + BASE, fail_push=True)
 if MULTIARCH:
     check("refs/heads/" + BASE, platforms="linux/amd64")
     check("refs/tags/9.8.7", platforms="linux/arm64")
-    check("refs/tags/r23", platforms="linux/arm64")
 print("Release checks passed for " + IMAGE)
