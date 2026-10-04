@@ -7,6 +7,13 @@ edge_dir="/mnt/containers/edge"
 cert="${edge_dir}/certificates/${domain}.crt"
 key="${edge_dir}/certificates/${domain}.key"
 
+# The scheduled run spreads nodes over 40 minutes so they neither hit the ACME
+# server together nor at the top of an hour, when it is most likely to refuse
+# requests. A manual run without the flag starts immediately.
+if [[ "${1:-}" == "--random-delay" ]]; then
+  sleep "$((RANDOM % 2400))"
+fi
+
 if [[ ! -f "${key}" || ! -f "${cert}" ]]; then
   exec /opt/bin/default_cert_create
 fi
@@ -18,6 +25,12 @@ fi
   --http.webroot="${edge_dir}" \
   --path="${edge_dir}" \
   renew --days=45
+
+# The job runs daily and usually has nothing to renew: reload nginx only when
+# the stored certificate differs from the one being served.
+if cmp -s "${cert}" /etc/nginx/ssl/default.crt && cmp -s "${key}" /etc/nginx/ssl/default.key; then
+  exit 0
+fi
 
 install -m 400 "${key}" /etc/nginx/ssl/default.key
 install -m 400 "${cert}" /etc/nginx/ssl/default.crt

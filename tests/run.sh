@@ -87,7 +87,10 @@ docker exec "${container}" /bin/sh -c 'test "$(cat /proc/1/comm)" = s6-svscan'
 docker exec "${container}" /bin/sh -c 'pidof nginx >/dev/null && pidof crond >/dev/null'
 docker exec "${container}" /bin/sh -c 'test -x /command/with-contenv'
 docker exec "${container}" grep -F '/command/with-contenv /opt/bin/default_cert_create' /etc/crontabs/root >/dev/null
-docker exec "${container}" grep -F '/command/with-contenv /opt/bin/default_cert_renew' /etc/crontabs/root >/dev/null
+docker exec "${container}" grep -F '10 3 * * * /command/with-contenv /opt/bin/default_cert_renew --random-delay' /etc/crontabs/root >/dev/null
+# The scheduled renewal must stay off the top of the hour.
+docker exec "${container}" /bin/sh -c '! grep -E "^0 [0-9*]+ .*default_cert_renew" /etc/crontabs/root'
+docker exec "${container}" /bin/bash -n /opt/bin/default_cert_renew
 docker exec "${container}" /bin/sh -c "ps | grep -q '[c]onfd .*etcdv3.*2379.*watch'"
 docker exec "${container}" /bin/sh -c '! apk info -e curl && ! apk info -e libcurl && ! apk info -e tar && ! apk info -e wget && ! apk info -e unzip'
 docker exec "${container}" /bin/sh -n /opt/bin/lego-dns-callback
