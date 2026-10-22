@@ -9,7 +9,11 @@ if [[ "${GITHUB_REF}" == refs/tags/* && ! "${GITHUB_REF#refs/tags/}" =~ ^(0|[1-9
     exit 1
 fi
 
-if [[ "${GITHUB_REF}" == refs/heads/master || "${GITHUB_REF}" == refs/tags/* ]]; then
+if [[ "${GITHUB_REF}" == refs/heads/release/edge-2.x || "${GITHUB_REF}" == refs/tags/* ]]; then
+    if [[ "${GITHUB_REF}" == refs/tags/* && ! "${GITHUB_REF#refs/tags/}" =~ ^2\. ]]; then
+        echo >&2 "The legacy maintenance branch only publishes Edge 2.x tags"
+        exit 1
+    fi
     printf '%s' "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
 
     if [[ "${GITHUB_REF}" == refs/tags/* ]]; then

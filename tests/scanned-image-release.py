@@ -9,8 +9,8 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 IMAGE = "wodby/edge-alpine"
 MULTIARCH = False
-BASE = "master"
-ALIASES = ['latest']
+BASE = "release/edge-2.x"
+ALIASES = ['2.x']
 
 
 def check(ref, platforms="linux/amd64,linux/arm64", missing=False, fail_push=False, invalid=False):
@@ -81,8 +81,8 @@ elif args[0] not in ["tag", "push"] and args[:3] != ["buildx", "imagetools", "cr
 
 
 check("refs/heads/" + BASE)
-check("refs/tags/9.8.7")
-for tag in ("r0", "r1", "r23", "3.0.12-rc1", "3.0.12.1", "03.0.12", "v3.0.12"):
+check("refs/tags/2.7.1")
+for tag in ("3.0.27", "9.8.7", "r0", "r1", "r23", "3.0.12-rc1", "3.0.12.1", "03.0.12", "v3.0.12"):
     check("refs/tags/" + tag, invalid=True)
 check("refs/pull/123/merge")
 check("refs/heads/feature/test")
@@ -90,5 +90,5 @@ check("refs/heads/" + BASE, missing=True)
 check("refs/heads/" + BASE, fail_push=True)
 if MULTIARCH:
     check("refs/heads/" + BASE, platforms="linux/amd64")
-    check("refs/tags/9.8.7", platforms="linux/arm64")
+    check("refs/tags/2.7.1", platforms="linux/arm64")
 print("Release checks passed for " + IMAGE)

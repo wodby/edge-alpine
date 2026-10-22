@@ -29,26 +29,36 @@ docker run --rm \
     "${image}" \
     dhparam -dsaparam -out /edge/dhparam.pem 2048 >/dev/null 2>&1
 
-docker run --rm --entrypoint /opt/wodby/tools/bin/confd "${image}" -version | grep -F 'confd'
-docker run -d \
-    --name "${render_etcd}" \
-    quay.io/coreos/etcd:v3.6.14 \
-    /usr/local/bin/etcd \
+# Exercise the installer-provided binary and the exact legacy etcd release.
+confd_url=https://s3.amazonaws.com/wodby-releases/confd/v1.0.0/confd
+curl -fsSL "${confd_url}" -o "${test_root}/confd"
+printf '%s  %s\n' 2274b7cf4286745ef34179a0fe47a964bf2a258f5bfbd94b106f06f8f208b68f "${test_root}/confd" | shasum -a 256 -c -
+chmod +x "${test_root}/confd"
+curl -fsSL https://github.com/etcd-io/etcd/releases/download/v2.3.7/etcd-v2.3.7-linux-amd64.tar.gz -o "${test_root}/etcd.tar.gz"
+printf '%s  %s\n' ab102d271026a4060c9f85ecad11f454d82b1df7b8e676cc3da69f67eb078729 "${test_root}/etcd.tar.gz" | shasum -a 256 -c -
+tar -xzf "${test_root}/etcd.tar.gz" -C "${test_root}" etcd-v2.3.7-linux-amd64/etcd etcd-v2.3.7-linux-amd64/etcdctl
+docker run -d --name "${render_etcd}" \
+    --entrypoint /test/etcd \
+    -v "${test_root}/etcd-v2.3.7-linux-amd64:/test:ro" \
+    "${image}" --data-dir=/tmp/etcd \
     --listen-client-urls=http://0.0.0.0:2379 \
     --advertise-client-urls=http://127.0.0.1:2379 >/dev/null
 for _ in $(seq 1 15); do
-    docker exec "${render_etcd}" /usr/local/bin/etcdctl endpoint health >/dev/null 2>&1 && break
+    docker exec "${render_etcd}" /test/etcdctl --endpoint http://127.0.0.1:2379 cluster-health >/dev/null 2>&1 && break
     sleep 1
 done
-docker exec "${render_etcd}" /usr/local/bin/etcdctl put \
+docker exec "${render_etcd}" /test/etcdctl --endpoint http://127.0.0.1:2379 set \
     /wodby/services/edge/http/service.dev.example.test \
     '{"proxy_proto":"http","proxy_addr":"127.0.0.1","proxy_port":8080,"ssl":true,"ssl_required":false,"cert_domain":"dev.example.test","maintenance":false,"no_robots":true,"hsts":false}' >/dev/null
-docker run --rm \
-    --network "container:${render_etcd}" \
-    --entrypoint /bin/sh \
+docker run --rm --network "container:${render_etcd}" --entrypoint /bin/sh \
+    -v "${test_root}/confd:/opt/wodby/tools/bin/confd:ro" \
     -v "${repo_root}/tests/confd-render:/tmp/confd:ro" \
     "${image}" \
-    -c '/opt/wodby/tools/bin/confd -onetime -sync-only -backend etcdv3 -node http://127.0.0.1:2379 -confdir /tmp/confd && grep -F "/mnt/containers/edge/certificates/dev.example.test.crt;" /tmp/nginx.conf'
+    -c '/opt/wodby/tools/bin/confd -onetime -node http://127.0.0.1:2379 -confdir /tmp/confd && grep -F "/mnt/containers/edge/certificates/dev.example.test.crt;" /tmp/nginx.conf'
+# Read and write a value containing URL-significant characters through the v2 API.
+docker run --rm --network "container:${render_etcd}" --entrypoint /bin/sh "${image}" \
+    -ec '. /etc/wodby/functions; etcd=http://127.0.0.1:2379/v2/keys; etcd_put compatibility "a&b=+%"'
+docker exec "${render_etcd}" /test/etcdctl --endpoint http://127.0.0.1:2379 get /compatibility | grep -Fx 'a&b=+%'
 docker rm -f "${render_etcd}" >/dev/null
 
 docker run -d \
@@ -88,16 +98,16 @@ docker exec "${container}" /bin/sh -c 'pidof nginx >/dev/null && pidof crond >/d
 docker exec "${container}" /bin/sh -c 'test -x /command/with-contenv'
 docker exec "${container}" grep -F '/command/with-contenv /opt/bin/default_cert_create' /etc/crontabs/root >/dev/null
 docker exec "${container}" grep -F '/command/with-contenv /opt/bin/default_cert_renew' /etc/crontabs/root >/dev/null
-docker exec "${container}" /bin/sh -c "ps | grep -q '[c]onfd .*etcdv3.*2379.*watch'"
+docker exec "${container}" /bin/sh -c "ps | grep -q '[c]onfd .*watch'"
 docker exec "${container}" /bin/sh -c '! apk info -e curl && ! apk info -e libcurl && ! apk info -e tar && ! apk info -e wget && ! apk info -e unzip'
 docker exec "${container}" /bin/sh -n /opt/bin/lego-dns-callback
 docker exec "${container}" grep -F 'cert_domain' /etc/confd/templates/nginx.conf.tmpl >/dev/null
 
 docker exec -d "${container}" /bin/busybox nc -l -p 18080 -e /usr/local/bin/test-http-server
 sleep 1
-docker exec "${container}" /bin/sh -c '. /etc/wodby/functions; etcd="http://127.0.0.1:18080"; etcd_put test test-payload'
-docker exec "${container}" /bin/sh -c 'test "$(cat /tmp/test-http-request)" = "POST /v3/kv/put HTTP/1.1"'
-docker exec "${container}" /bin/sh -c 'test "$(cat /tmp/test-http-body)" = "{\"key\":\"L3Rlc3Q=\",\"value\":\"dGVzdC1wYXlsb2Fk\"}"'
+docker exec "${container}" /bin/sh -c '. /etc/wodby/functions; etcd="http://127.0.0.1:18080/v2/keys"; etcd_put test test-payload'
+docker exec "${container}" /bin/sh -c 'test "$(cat /tmp/test-http-request)" = "PUT /v2/keys/test HTTP/1.1"'
+docker exec "${container}" /bin/sh -c 'test "$(cat /tmp/test-http-body)" = "value=%74%65%73%74%2D%70%61%79%6C%6F%61%64"'
 
 docker exec -d "${container}" /bin/busybox nc -l -p 18081 -e /usr/local/bin/test-http-server
 sleep 1

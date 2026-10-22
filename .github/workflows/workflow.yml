@@ -3,7 +3,7 @@ name: Build docker image
 on:
   push:
     branches:
-    - master
+    - release/edge-2.x
 
     tags:
     - '[0-9]+.[0-9]+.[0-9]+'
@@ -16,7 +16,7 @@ permissions:
 env:
   DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
   DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-  TAGS: latest
+  TAGS: 2.x
 
 jobs:
   build:

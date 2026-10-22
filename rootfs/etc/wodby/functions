@@ -52,30 +52,24 @@ http_request() {
   return "${err}"
 }
 
+# Legacy etcd accepts form-encoded values, including JSON containing ampersands.
 etcd_put() {
-  local key value body_file encoded_key encoded_value err
-  key="/${1#/}"
+  local key value body_file err
+  key="${1#/}"
   value="$2"
   body_file="/tmp/etcd-put-$(cat /proc/sys/kernel/random/uuid)"
-  encoded_key="$(printf '%s' "${key}" | base64 | tr -d '\n')"
-  encoded_value="$(printf '%s' "${value}" | base64 | tr -d '\n')"
-  printf '{"key":"%s","value":"%s"}' "${encoded_key}" "${encoded_value}" >"${body_file}"
-  http_request POST "${etcd}/v3/kv/put" "${body_file}" application/json
+  {
+    printf 'value='
+    printf '%s' "${value}" | od -An -v -tx1 | awk '{for (i=1;i<=NF;i++) printf "%%%s",toupper($i)}'
+  } >"${body_file}"
+  http_request PUT "${etcd}/${key}" "${body_file}" application/x-www-form-urlencoded
   err=$?
   rm -f "${body_file}"
   return "${err}"
 }
 
 etcd_delete() {
-  local key body_file encoded_key err
-  key="/${1#/}"
-  body_file="/tmp/etcd-delete-$(cat /proc/sys/kernel/random/uuid)"
-  encoded_key="$(printf '%s' "${key}" | base64 | tr -d '\n')"
-  printf '{"key":"%s"}' "${encoded_key}" >"${body_file}"
-  http_request POST "${etcd}/v3/kv/deleterange" "${body_file}" application/json
-  err=$?
-  rm -f "${body_file}"
-  return "${err}"
+  http_request DELETE "${etcd}/${1#/}"
 }
 
 answer() {
