@@ -113,6 +113,9 @@ COPY --from=lego-build /src/dist/lego /opt/wodby/bin/lego
 COPY --from=gotpl-build /gotpl /usr/local/bin/gotpl
 COPY rootfs /
 
+HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=3 \
+    CMD ["/opt/bin/edge-ready"]
+
 EXPOSE 80 443
 
 ENTRYPOINT ["/init"]

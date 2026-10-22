@@ -7,16 +7,21 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 test_root="$(mktemp -d "${TMPDIR:-/tmp}/edge-alpine-test.XXXXXX")"
 container="edge-alpine-test-$$"
 render_etcd="${container}-render-etcd"
+network="${container}-network"
+override_container="${container}-override"
 
 cleanup() {
-    status=$?
-    if [[ "${status}" -ne 0 ]]; then
-        docker logs "${container}" 2>/dev/null || true
+    exit_status=$?
+    if [[ "${exit_status}" -ne 0 ]]; then
+        docker logs "${container}" || true
+        docker logs "${override_container}" || true
     fi
     docker rm -f "${container}" >/dev/null 2>&1 || true
+    docker rm -f "${override_container}" >/dev/null 2>&1 || true
     docker rm -f "${render_etcd}" >/dev/null 2>&1 || true
+    docker network rm "${network}" >/dev/null 2>&1 || true
     rm -rf "${test_root}"
-    exit "${status}"
+    exit "${exit_status}"
 }
 trap cleanup EXIT
 
@@ -37,12 +42,14 @@ chmod +x "${test_root}/confd"
 curl -fsSL https://github.com/etcd-io/etcd/releases/download/v2.3.7/etcd-v2.3.7-linux-amd64.tar.gz -o "${test_root}/etcd.tar.gz"
 printf '%s  %s\n' ab102d271026a4060c9f85ecad11f454d82b1df7b8e676cc3da69f67eb078729 "${test_root}/etcd.tar.gz" | shasum -a 256 -c -
 tar -xzf "${test_root}/etcd.tar.gz" -C "${test_root}" etcd-v2.3.7-linux-amd64/etcd etcd-v2.3.7-linux-amd64/etcdctl
+docker network create "${network}" >/dev/null
 docker run -d --name "${render_etcd}" \
+    --network "${network}" --network-alias etcd.wodby --network-alias custom-etcd \
     --entrypoint /test/etcd \
     -v "${test_root}/etcd-v2.3.7-linux-amd64:/test:ro" \
     "${image}" --data-dir=/tmp/etcd \
-    --listen-client-urls=http://0.0.0.0:2379 \
-    --advertise-client-urls=http://127.0.0.1:2379 >/dev/null
+    --listen-client-urls=http://0.0.0.0:2379,http://0.0.0.0:4001 \
+    --advertise-client-urls=http://etcd.wodby:4001 >/dev/null
 for _ in $(seq 1 15); do
     docker exec "${render_etcd}" /test/etcdctl --endpoint http://127.0.0.1:2379 cluster-health >/dev/null 2>&1 && break
     sleep 1
@@ -59,16 +66,26 @@ docker run --rm --network "container:${render_etcd}" --entrypoint /bin/sh \
 docker run --rm --network "container:${render_etcd}" --entrypoint /bin/sh "${image}" \
     -ec '. /etc/wodby/functions; etcd=http://127.0.0.1:2379/v2/keys; etcd_put compatibility "a&b=+%"'
 docker exec "${render_etcd}" /test/etcdctl --endpoint http://127.0.0.1:2379 get /compatibility | grep -Fx 'a&b=+%'
-docker rm -f "${render_etcd}" >/dev/null
+# The startup and reload tests below use this same real etcd on a separate
+# container IP. A watcher accidentally defaulting to localhost cannot pass.
+docker exec "${render_etcd}" /test/etcdctl --endpoint http://127.0.0.1:2379 rm \
+    /wodby/services/edge/http/service.dev.example.test >/dev/null
+set_route() {
+    docker exec "${render_etcd}" /test/etcdctl --endpoint http://127.0.0.1:2379 set \
+        "/wodby/services/edge/http/$1" \
+        "{\"proxy_proto\":\"http\",\"proxy_addr\":\"127.0.0.1\",\"proxy_port\":8080,\"ssl\":false,\"maintenance\":$2}" >/dev/null
+}
+set_route cold.example.test false
 
 docker run -d \
-    --name "${container}" \
+    --name "${container}" --network "${network}" \
     -e WODBY_BASE_DOMAIN=example.test \
     -e WODBY_NODE_UUID=test-node \
     -p 127.0.0.1::80 \
     -p 127.0.0.1::443 \
-    -v "${repo_root}/tests/confd:/opt/wodby/tools/bin/confd:ro" \
+    -v "${test_root}/confd:/opt/wodby/tools/bin/confd:ro" \
     -v "${repo_root}/tests/http-server:/usr/local/bin/test-http-server:ro" \
+    -v "${repo_root}/tests/http-upstream:/usr/local/bin/test-http-upstream:ro" \
     -v "${test_root}/edge:/mnt/containers/edge" \
     "${image}" >/dev/null
 
@@ -89,6 +106,86 @@ done
 
 [[ "${http_status}" == "503" ]]
 [[ "$(curl -ksS -o /dev/null -w '%{http_code}' "https://127.0.0.1:${https_port}/")" == "503" ]]
+
+wait_ready() {
+    for _ in $(seq 1 30); do
+        docker exec "$1" /opt/bin/edge-ready >/dev/null 2>&1 && return 0
+        sleep 1
+    done
+    echo "edge watcher did not become ready" >&2
+    return 1
+}
+wait_ready "${container}"
+
+docker exec -d "${container}" /bin/sh -ec \
+    'while :; do /bin/busybox nc -l -p 8080 -e /usr/local/bin/test-http-upstream; done'
+wait_route() {
+    for _ in $(seq 1 20); do
+        if [[ "$(curl -sS --max-time 3 -H "Host: $1" "http://127.0.0.1:${http_port}/" || true)" == "edge-route-ok" ]]; then
+            return 0
+        fi
+        sleep 1
+    done
+    echo "route $1 was not served by the live watcher" >&2
+    return 1
+}
+wait_route cold.example.test
+# Existing routes must be backed by a successful render, not just a healthy etcd.
+docker exec "${container}" rm /run/edge-confd-ready
+if docker exec "${container}" /opt/bin/edge-ready; then
+    echo "readiness accepted routes without an accepted configuration" >&2; exit 1
+fi
+set_route live.example.test false
+wait_route live.example.test
+wait_ready "${container}"
+set_route live.example.test true
+for _ in $(seq 1 20); do
+    status="$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: live.example.test' "http://127.0.0.1:${http_port}/")"
+    [[ "${status}" == "503" ]] && break
+    sleep 1
+done
+[[ "${status}" == "503" ]]
+set_route live.example.test false
+wait_route live.example.test
+
+# A healthy fallback listener must never hide a dead watcher or unavailable etcd.
+docker exec "${container}" /command/s6-svc -d /run/service/01-confd
+for _ in $(seq 1 10); do
+    docker exec "${container}" /bin/sh -c '! pidof confd >/dev/null' && break
+    sleep 1
+done
+if docker exec "${container}" /opt/bin/edge-ready; then
+    echo "readiness accepted a stopped watcher" >&2; exit 1
+fi
+wait_route live.example.test
+docker exec "${container}" /command/s6-svc -u /run/service/01-confd
+wait_ready "${container}"
+docker stop "${render_etcd}" >/dev/null
+if docker exec "${container}" /opt/bin/edge-ready; then
+    echo "readiness accepted unavailable etcd" >&2; exit 1
+fi
+docker start "${render_etcd}" >/dev/null
+wait_ready "${container}"
+set_route recovered.example.test false
+wait_route recovered.example.test
+
+# Also boot with no application routes, using an explicit host and non-default port.
+docker exec "${render_etcd}" /test/etcdctl --endpoint http://127.0.0.1:2379 rm \
+    --recursive /wodby/services/edge/http >/dev/null
+docker run -d --name "${override_container}" --network "${network}" \
+    -e WODBY_BASE_DOMAIN=example.test -e WODBY_NODE_UUID=test-override \
+    -e WODBY_ETCD_HOST=custom-etcd -e WODBY_ETCD_PORT=2379 \
+    -v "${test_root}/confd:/opt/wodby/tools/bin/confd:ro" \
+    -v "${test_root}/edge:/mnt/containers/edge" "${image}" >/dev/null
+wait_ready "${override_container}"
+set_route override.example.test false
+for _ in $(seq 1 20); do
+    docker exec "${override_container}" grep -q 'server_name override.example.test;' /etc/nginx/nginx.conf && break
+    sleep 1
+done
+docker exec "${override_container}" grep -q 'server_name override.example.test;' /etc/nginx/nginx.conf
+docker exec "${override_container}" /bin/sh -c "ps | grep -q '[c]onfd .*http://custom-etcd:2379'"
+docker rm -f "${override_container}" >/dev/null
 
 docker exec "${container}" /usr/sbin/nginx -t
 docker exec "${container}" /usr/sbin/nginx -v

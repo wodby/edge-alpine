@@ -2,4 +2,7 @@
 
 set -eo pipefail
 
+# The fallback configuration must never inherit readiness from an earlier boot.
+rm -f /run/edge-confd-ready
+
 /usr/local/bin/gotpl /etc/gotpl/nginx.conf.tmpl > /etc/nginx/nginx.conf

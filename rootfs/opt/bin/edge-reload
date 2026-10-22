@@ -1,0 +1,8 @@
+#!/bin/sh
+
+set -eu
+
+# Confd runs nginx's configuration check before invoking this reload command.
+# Record readiness only after a real configuration was rendered and accepted.
+/usr/sbin/nginx -s reload
+touch /run/edge-confd-ready

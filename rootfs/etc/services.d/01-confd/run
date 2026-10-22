@@ -6,4 +6,7 @@ until pidof nginx >/dev/null; do
     sleep 1
 done
 
-exec /opt/wodby/tools/bin/confd -watch
+# The legacy binary defaults to container-local etcd, but Infrastructure 6
+# exposes its host-level etcd through the Kubernetes service instead.
+exec /opt/wodby/tools/bin/confd -watch -backend etcd \
+    -node "http://${WODBY_ETCD_HOST:-etcd.wodby}:${WODBY_ETCD_PORT:-4001}"

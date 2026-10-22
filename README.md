@@ -40,13 +40,21 @@ The Wodby 1 deployment must provide:
 - `WODBY_NODE_UUID` and, when different from `wodby.cloud`,
   `WODBY_BASE_DOMAIN`;
 - persistent edge data at `/mnt/containers/edge`;
-- etcd v2 reachable through `WODBY_ETCD_HOST` and `WODBY_ETCD_PORT` (default 4001);
+- etcd v2 reachable through `WODBY_ETCD_HOST` (default `etcd.wodby`) and
+  `WODBY_ETCD_PORT` (default `4001`);
 - the existing `confd` executable mounted at `/opt/wodby/tools/bin/confd`;
 - optional backups at `/usr/share/nginx/html/backups`.
 
 This maintenance branch releases Edge 2.x for Infrastructure 6. Edge 3.x uses
 etcd v3 and is released from `master`. Do not replace a legacy etcd store or
 host-mounted tools as part of an Edge image update.
+
+Readiness uses `/opt/bin/edge-ready`: both nginx and the watcher must be
+running, etcd must be healthy, and nginx must have accepted a configuration
+rendered by the watcher. Before the first route exists, the default fallback
+configuration is allowed. Use this command as the Kubernetes exec readiness probe; a TCP probe
+alone also accepts the fallback error page. The image health check uses the same
+command.
 
 ## Build and test
 
@@ -56,4 +64,7 @@ make test
 ```
 
 The runtime tests exercise the legacy etcd API and host-provided `confd`,
-validate nginx and lego, and check default HTTP and HTTPS responses.
+validate nginx and lego, and check default HTTP and HTTPS responses. They also
+boot the actual watcher against etcd on another container IP, verify existing
+and newly added routes, exercise endpoint overrides, and reject readiness when
+the watcher or etcd is unavailable.
