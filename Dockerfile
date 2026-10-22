@@ -1,5 +1,5 @@
 ARG GO_IMAGE=golang:1.26.10-alpine3.23@sha256:107301490755aa2ea1b0b43788b6e62cff2faae45a538028b193becc06aaffba
-ARG NGINX_IMAGE=wodby/nginx:1.31-r12@sha256:d3baa68b48258bd45d0b772392641d6bfcb0a2b2f4f421d6ca3bf50b48469231
+ARG NGINX_IMAGE=wodby/nginx:1.31-r13@sha256:fdc6aa4fdac1dfc0f331b8ecaae7000b6f5936fd8d1ffa07e3c52550ec0d54ce
 
 FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS lego-build
 
