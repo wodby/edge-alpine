@@ -1,0 +1,23 @@
+#!/bin/sh
+
+set -eu
+
+pidof nginx >/dev/null
+pidof confd >/dev/null
+/usr/sbin/nginx -t >/dev/null 2>&1
+endpoint="http://${WODBY_ETCD_HOST:-etcd.wodby}:${WODBY_ETCD_PORT:-4001}"
+
+# Check the same endpoint used by the watcher, including legacy port overrides.
+/bin/busybox wget -T 2 -qO- "${endpoint}/health" \
+    | grep -Eq '"health"[[:space:]]*:[[:space:]]*("true"|true)'
+
+if [ ! -f /run/edge-confd-ready ]; then
+    # With no route collection, confd waits for its first key without rendering.
+    # Only etcd's explicit Not Found permits the initial fallback configuration;
+    # configured routes, timeouts, authentication errors and other failures do not.
+    if headers="$(/bin/busybox wget -T 2 -SqO /dev/null \
+        "${endpoint}/v2/keys/wodby/services/edge/http" 2>&1)"; then
+        exit 1
+    fi
+    printf '%s\n' "${headers}" | grep -Eq '^[[:space:]]*HTTP/1\.[01] 404 '
+fi

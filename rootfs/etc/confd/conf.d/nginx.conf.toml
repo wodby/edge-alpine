@@ -9,4 +9,4 @@ keys = [
   "/http",
 ]
 check_cmd = "/usr/sbin/nginx -t -c {{.src}}"
-reload_cmd = "/usr/sbin/nginx -s reload"
+reload_cmd = "/opt/bin/edge-reload"
