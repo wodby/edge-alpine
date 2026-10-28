@@ -8,6 +8,7 @@ ARG LEGO_COMMIT=537f2ed0b7946b30bcfa81c5256e7c99ba6286bb
 ARG GO_CRYPTO_VERSION=v0.58.0
 ARG GO_NET_VERSION=v0.62.0
 ARG GO_GRPC_VERSION=v1.85.0
+ARG GO_JOSE_VERSION=v4.1.6
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -24,7 +25,8 @@ RUN set -eux; \
     go get \
         "golang.org/x/crypto@${GO_CRYPTO_VERSION}" \
         "golang.org/x/net@${GO_NET_VERSION}" \
-        "google.golang.org/grpc@${GO_GRPC_VERSION}"; \
+        "google.golang.org/grpc@${GO_GRPC_VERSION}" \
+        "github.com/go-jose/go-jose/v4@${GO_JOSE_VERSION}"; \
     go mod tidy; \
     go mod verify; \
     CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" go build -p 2 -trimpath \
