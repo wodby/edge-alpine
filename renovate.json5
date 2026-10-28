@@ -1,0 +1,49 @@
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: ['config:recommended'],
+  // The nightly wodby/images updater owns the base images, lego, s6-overlay,
+  // the etcd client, gotpl and confd, and tags Edge releases. Renovate covers
+  // only what it does not: the Go module security pins applied with `go get`
+  // in the lego and confd build stages, and GitHub Actions.
+  enabledManagers: ['custom.regex', 'github-actions'],
+  schedule: ['before 7am on monday'],
+  timezone: 'UTC',
+  customManagers: [
+    {
+      customType: 'regex',
+      description: 'golang.org/x/crypto security pin',
+      managerFilePatterns: ['/(^|/)Dockerfile$/'],
+      matchStrings: ['ARG GO_CRYPTO_VERSION=(?<currentValue>v\\S+)'],
+      depNameTemplate: 'golang.org/x/crypto',
+      datasourceTemplate: 'go',
+    },
+    {
+      customType: 'regex',
+      description: 'golang.org/x/net security pin',
+      managerFilePatterns: ['/(^|/)Dockerfile$/'],
+      matchStrings: ['ARG GO_NET_VERSION=(?<currentValue>v\\S+)'],
+      depNameTemplate: 'golang.org/x/net',
+      datasourceTemplate: 'go',
+    },
+    {
+      customType: 'regex',
+      description: 'google.golang.org/grpc security pin',
+      managerFilePatterns: ['/(^|/)Dockerfile$/'],
+      matchStrings: ['ARG GO_GRPC_VERSION=(?<currentValue>v\\S+)'],
+      depNameTemplate: 'google.golang.org/grpc',
+      datasourceTemplate: 'go',
+    },
+  ],
+  packageRules: [
+    {
+      description: 'Both build stages share these pins; update them in one pull request. The build verifies that the lego and confd modules still resolve.',
+      matchManagers: ['custom.regex'],
+      groupName: 'Go module security pins',
+    },
+    {
+      description: 'Update GitHub Actions together.',
+      matchManagers: ['github-actions'],
+      groupName: 'GitHub Actions',
+    },
+  ],
+}
