@@ -43,6 +43,13 @@ The Wodby 1 deployment must provide:
 - etcd v3 reachable through `WODBY_ETCD_HOST` and `WODBY_ETCD_PORT`;
 - optional backups at `/usr/share/nginx/html/backups`.
 
+Edge requests and renews the certificate for the node domain
+`node-<WODBY_NODE_UUID>.<WODBY_BASE_DOMAIN>` on its own. Renewal is attempted
+once a day at a random moment between 03:10 and 03:50 UTC, starting 45 days
+before expiry, so a refused attempt is retried the next day. To renew
+immediately, run `/command/with-contenv /opt/bin/default_cert_renew` in the
+container.
+
 Edge 3.x no longer supports the legacy etcd v2 backend. Existing Infrastructure
 6 nodes remain on Edge 2.x.
 
