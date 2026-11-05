@@ -215,3 +215,34 @@ docker exec \
     /opt/bin/lego-dns-callback \
     present _acme-challenge.dev.example.test exampleChallengeValue123
 docker exec "${container}" /bin/sh -c 'test "$(cat /tmp/test-http-body)" = "{\"token\":\"test-token\",\"action\":\"present\",\"fqdn\":\"_acme-challenge.dev.example.test\",\"value\":\"exampleChallengeValue123\"}"'
+
+# answer() must send valid JSON to the Agent whether the result is one line or several.
+check_answer() {
+    local errno="$1" result="$2" message
+    docker exec -d "${container}" /bin/sh -c '/bin/busybox nc -l -p 18082 >/tmp/test-iaas-message'
+    sleep 1
+    docker exec -e errno="${errno}" -e result="${result}" "${container}" /bin/sh -c '
+        . /etc/wodby/config
+        . /etc/wodby/functions
+        log() { :; }
+        backend_host=127.0.0.1
+        backend_port=18082
+        is_backend=0
+        state_uuid=test-state
+        (answer) || true'
+    message="$(docker exec "${container}" cat /tmp/test-iaas-message)"
+    EXPECTED_ERRNO="${errno}" EXPECTED_RESULT="${result}" python3 -c '
+import json, os, sys
+message = json.loads(sys.argv[1])
+assert message["state_uuid"] == "test-state", message
+if os.environ["EXPECTED_ERRNO"] == "0":
+    actual = message["result"]
+else:
+    assert message["error"]["errno"] == os.environ["EXPECTED_ERRNO"], message
+    actual = message["error"]["message"]
+assert actual == os.environ["EXPECTED_RESULT"], (actual, os.environ["EXPECTED_RESULT"])
+' "${message}"
+}
+
+check_answer 1 "Could not create client: get directory at 'https://acme-v02.api.letsencrypt.org/directory': Get \"https://acme-v02.api.letsencrypt.org/directory\": dial tcp: i/o timeout"
+check_answer 0 "$(printf 'line \\ one\nline "two"\ttab 100%% a;b&c+d')"
