@@ -78,6 +78,23 @@ etcd_delete() {
   return "${err}"
 }
 
+# Escapes a value for use inside a JSON string.
+# The read loop is written as `$!{N;ba}` so the substitutions also run on
+# single-line input: with `N;$!ba`, sed quits at `N` on the last line and
+# leaves a one-line value unescaped, which the Agent then rejects as invalid
+# JSON. Control characters that have no short JSON escape are dropped.
+json_escape() {
+  printf '%s' "$1" \
+    | tr -d '\000-\010\013\016-\037' \
+    | sed -e ':a' -e '$!{N;ba' -e '}' \
+        -e 's/\\/\\\\/g' \
+        -e 's/"/\\"/g' \
+        -e 's/\t/\\t/g' \
+        -e 's/\f/\\f/g' \
+        -e 's/\r/\\r/g' \
+        -e 's/\n/\\n/g'
+}
+
 answer() {
   local tmp_answer retries err
   tmp_answer="$(cat /proc/sys/kernel/random/uuid)"
@@ -90,8 +107,7 @@ answer() {
     result='ok'
   fi
 
-  result="$(printf '%s' "${result}" | sed -e ':a;N;$!ba;s/\\/\\\\/g;s/%/%25/g;s/\;/%3B/g;s/&/%26/g;s/+/%2B/g;s/"/\\"/g;s/\f/\\f/g;s/\t/\\t/g;s/\r/\\r/g;s/\n/\\n/g')"
-  result="$(printf '%s' "${result}" | sed -e 's/\t/\\t/g')"
+  result="$(json_escape "${result}")"
 
   if [ "${errno}" != "0" ]; then
     log 'processed with error'
