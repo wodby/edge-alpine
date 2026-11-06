@@ -25,6 +25,8 @@ jobs:
     - uses: actions/checkout@v6
     - name: Check scanned-image publication
       run: python3 tests/scanned-image-release.py
+    - name: Check GitHub release publication
+      run: python3 tests/github-release.py
     - uses: ./.github/actions
     - name: Select built image
       id: build-image
@@ -42,3 +44,20 @@ jobs:
       env:
         SCANNED_IMAGE: ${{ steps.build-image.outputs.image }}
       run: ./.github/actions/release.sh
+
+  github-release:
+    # Publish the GitHub release only after the tagged image has been pushed.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    needs: [ build ]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v6
+    - name: Create GitHub release
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+        # Edge 2.x is a legacy maintenance line; its releases are never Latest.
+        RELEASE_LATEST: never
+      run: ./.github/actions/github-release.sh
