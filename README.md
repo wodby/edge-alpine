@@ -22,16 +22,27 @@ for available versions. `latest` follows the default branch.
   longer compiles nginx or upgrades an obsolete Alpine filesystem in place.
 - The final image refreshes packages from the pinned Alpine release during the
   build and removes inherited build/runtime tools that edge does not use.
-- s6-overlay supervises nginx, crond, and a pinned `confd` build restricted to
-  its etcd v3 backend. Edge connects directly to etcd on port 2379.
-- lego stays on the v4 CLI/storage contract so existing Wodby 1 certificate
-  data does not need a destructive v5 migration. The v4.35.2 source is rebuilt
-  as `v4.35.2-wodby.1` with Go 1.26.5 and patched `x/crypto`, `x/net`, and gRPC
-  dependencies.
+- s6-overlay supervises nginx, crond, and `confd`. confd is the maintained
+  [`abtreece/confd`](https://github.com/abtreece/confd) fork, built from a
+  release tag with only its etcd backend compiled in. Edge connects directly to
+  etcd v3 on port 2379.
+- lego is built from a v5 release tag with only its `exec` DNS provider, which
+  hands DNS-01 records to Wodby.
+- lego 5 stores ACME account keys differently from lego 4. On its first start
+  on lego 4 data, Edge archives the lego files to
+  `/mnt/containers/edge/lego4-backup-<time>.tar`, runs `lego migrate` once, and
+  keeps a copy of each account key where lego 4 expects it, so an earlier Edge
+  release still uses the same account. A failed migration is logged and never
+  stops nginx.
 
-The pinned versions and digests live at the top of `Dockerfile`. Update those
-pins together and run the build, runtime tests, and an image vulnerability scan
-before releasing a new tag.
+The pinned versions and digests live at the top of `Dockerfile`.
+`LEGO_GO_MODULES` and `CONFD_GO_MODULES` raise Go modules above what lego or
+confd require, and only while a fixable vulnerability needs it.
+
+The [images updater](https://github.com/wodby/images) keeps the branch current
+every day, but tags a release only when the latest release has a fixable High or
+Critical vulnerability that the branch fixes. Each Edge update restarts the
+node's ingress, so releases without a security reason are made by hand.
 
 ## Runtime contract
 
@@ -56,3 +67,9 @@ make test
 The runtime test starts the image with an isolated edge data directory and a
 stub `confd`, validates nginx and lego versions, and checks the default HTTP and
 HTTPS responses.
+
+The ACME test uses a local [Pebble](https://github.com/letsencrypt/pebble)
+server. It upgrades lego 4 data written by Edge 3.0.41, runs the lego actions
+Wodby requests, and checks that 3.0.41 still renews with the migrated account.
+On hosts that cannot run the amd64 3.0.41 image, set `LEGACY_IMAGE` to a local
+image with that release's lego at `/opt/wodby/bin/lego`.

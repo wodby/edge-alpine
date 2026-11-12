@@ -11,13 +11,13 @@ if [[ ! -f "${key}" || ! -f "${cert}" ]]; then
   exec /opt/bin/default_cert_create
 fi
 
-/opt/wodby/bin/lego -a \
+/opt/wodby/bin/lego run -a \
   --email="hello@wodby.com" \
   --domains="${domain}" \
   --http \
   --http.webroot="${edge_dir}" \
   --path="${edge_dir}" \
-  renew --days=45
+  --renew-days=45
 
 install -m 400 "${key}" /etc/nginx/ssl/default.key
 install -m 400 "${cert}" /etc/nginx/ssl/default.crt

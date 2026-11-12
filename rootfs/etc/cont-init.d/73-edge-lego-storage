@@ -1,0 +1,59 @@
+#!/command/with-contenv bash
+
+# lego 5 stores each ACME account key next to its account.json; lego 4 kept it
+# in a keys/ folder. Without `lego migrate`, lego 5 would not find the key and
+# would register a new account, so migrate the data once before any lego run.
+#
+# The lego 4 files are archived first, and each migrated key is copied back to
+# keys/, so an earlier Edge release can still use the same account. A failed
+# migration is reported but never stops Edge from serving traffic.
+
+set -o pipefail
+shopt -s nullglob
+
+edge_dir="/mnt/containers/edge"
+lego="/opt/wodby/bin/lego"
+
+# Accounts that still have only the lego 4 key location.
+legacy_accounts=()
+for key in "${edge_dir}"/accounts/*/*/keys/*.key; do
+    account_dir="${key%/keys/*}"
+    if [[ ! -f "${account_dir}/${key##*/}" ]]; then
+        legacy_accounts+=("${account_dir}")
+    fi
+done
+
+if [[ "${#legacy_accounts[@]}" -eq 0 ]]; then
+    exit 0
+fi
+
+echo "edge: migrating ${#legacy_accounts[@]} lego account(s) to the lego 5 storage layout"
+
+# The archive lives in the data directory, which is persistent; lego only reads
+# account.json files, so it does not pick up the archived copies.
+backup="${edge_dir}/lego4-backup-$(date -u +%Y%m%dT%H%M%SZ).tar"
+cert_meta=("${edge_dir}"/certificates/*.json)
+if ! (umask 077 && cd "${edge_dir}" \
+    && /bin/busybox tar -cf "${backup}" accounts "${cert_meta[@]#"${edge_dir}"/}"); then
+    echo "edge: could not archive lego 4 data; lego storage was not migrated" >&2
+    rm -f "${backup}"
+    exit 0
+fi
+
+# migrate asks for confirmation and writes a suggested configuration file into
+# the working directory, which Edge does not use.
+if ! (cd /tmp && echo Y | "${lego}" migrate --path="${edge_dir}"); then
+    echo "edge: lego storage migration failed; the lego 4 data is archived in ${backup}" >&2
+    rm -f /tmp/.lego.migration.*.yml
+    exit 0
+fi
+rm -f /tmp/.lego.migration.*.yml
+
+for account_dir in "${legacy_accounts[@]}"; do
+    for key in "${account_dir}"/*.key; do
+        mkdir -p -m 700 "${account_dir}/keys"
+        cp -p "${key}" "${account_dir}/keys/${key##*/}"
+    done
+done
+
+echo "edge: lego storage migrated; the lego 4 data is archived in ${backup}"

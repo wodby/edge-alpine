@@ -6,7 +6,9 @@ until pidof nginx >/dev/null; do
     sleep 1
 done
 
-exec /opt/wodby/tools/bin/confd \
-    -backend etcdv3 \
-    -node "http://${WODBY_ETCD_HOST:-etcd.wodby}:${WODBY_ETCD_PORT:-2379}" \
-    -watch
+# The lego reload waits up to EXEC_PROPAGATION_TIMEOUT for DNS-01 records, longer
+# than confd's default 60-second reload limit; 0 turns that limit off.
+exec /opt/wodby/tools/bin/confd etcd \
+    --node "http://${WODBY_ETCD_HOST:-etcd.wodby}:${WODBY_ETCD_PORT:-2379}" \
+    --watch \
+    --reload-cmd-timeout=0
