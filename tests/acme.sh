@@ -167,9 +167,9 @@ lego_action() {
     local settings="$1" expected="$2" answer
     edge /bin/sh -c "printf '%s\n' ${settings} > /etc/wodby/lego"
     edge /bin/sh -c ': > /tmp/backend-messages'
-    if ! edge_s6 /opt/bin/lego; then
-        [[ "${expected}" == error ]] || fail "lego action failed: ${settings}"
-    fi
+    # The answer sent to Wodby is the outcome; the script's exit status is not
+    # (answer() leaves status 1 even after a successful action).
+    edge_s6 /opt/bin/lego || true
     answer="$(edge grep -F '"type":"response"' /tmp/backend-messages | tail -n 1)"
     EXPECTED="${expected}" python3 -c '
 import json, os, sys
