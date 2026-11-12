@@ -59,6 +59,28 @@ edge_s6() {
 
 trap 'echo "acme test failed at line ${LINENO}: ${BASH_COMMAND}" >&2' ERR
 
+# Pebble's sample configuration also offers a 6-day profile, which it may pick
+# for orders that name none; Edge's renewal checks assume 90-day certificates.
+cat >"${test_root}/pebble-config.json" <<'JSON'
+{
+  "pebble": {
+    "listenAddress": "0.0.0.0:14000",
+    "managementListenAddress": "0.0.0.0:15000",
+    "certificate": "test/certs/localhost/cert.pem",
+    "privateKey": "test/certs/localhost/key.pem",
+    "httpPort": 5002,
+    "tlsPort": 5001,
+    "ocspResponderURL": "",
+    "externalAccountBindingRequired": false,
+    "retryAfter": {"authz": 3, "order": 5},
+    "keyAlgorithm": "ecdsa",
+    "profiles": {
+      "default": {"description": "90-day certificates", "validityPeriod": 7776000}
+    }
+  }
+}
+JSON
+
 docker network create "${network}" >/dev/null
 docker run -d \
     --name "${pebble}" \
@@ -66,6 +88,8 @@ docker run -d \
     --network-alias pebble \
     -e PEBBLE_VA_ALWAYS_VALID=1 \
     -e PEBBLE_VA_NOSLEEP=1 \
+    -e PEBBLE_WFE_NONCEREJECT=0 \
+    -v "${test_root}/pebble-config.json:/test/config/pebble-config.json:ro" \
     "${pebble_image}" >/dev/null
 docker cp "${pebble}:/test/certs/pebble.minica.pem" "${test_root}/pebble-ca.pem" >/dev/null
 for _ in $(seq 1 30); do
