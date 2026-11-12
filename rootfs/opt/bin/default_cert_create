@@ -8,13 +8,12 @@ cert="${edge_dir}/certificates/${domain}.crt"
 key="${edge_dir}/certificates/${domain}.key"
 
 if [[ ! -f "${key}" || ! -f "${cert}" ]]; then
-  /opt/wodby/bin/lego -a \
+  /opt/wodby/bin/lego run -a \
     --email="hello@wodby.com" \
     --domains="${domain}" \
     --http \
     --http.webroot="${edge_dir}" \
-    --path="${edge_dir}" \
-    run
+    --path="${edge_dir}"
 
   install -m 400 "${key}" /etc/nginx/ssl/default.key
   install -m 400 "${cert}" /etc/nginx/ssl/default.crt

@@ -24,8 +24,14 @@ for available versions. `latest` follows the default branch.
   build and removes inherited build/runtime tools that edge does not use.
 - s6-overlay supervises nginx, crond, and the host-provided legacy `confd`.
   Edge retains the etcd v2 key API on port 4001.
-- lego stays on the v4 CLI/storage contract. The v4.35.2 source is rebuilt as
-  `v4.35.2-wodby.1` with the Go module overrides in `LEGO_GO_MODULES`.
+- lego is built from a v5 release tag with only its `exec` DNS provider, which
+  hands DNS-01 records to Wodby.
+- lego 5 stores ACME account keys differently from lego 4. On its first start
+  on lego 4 data, Edge archives the lego files to
+  `/mnt/containers/edge/lego4-backup-<time>.tar`, runs `lego migrate` once, and
+  keeps a copy of each account key where lego 4 expects it, so an earlier Edge
+  release still uses the same account. A failed migration is logged and never
+  stops nginx.
 
 The pinned versions and digests live at the top of `Dockerfile`.
 `LEGO_GO_MODULES` raises Go modules above what lego requires, and only while a
@@ -70,3 +76,9 @@ validate nginx and lego, and check default HTTP and HTTPS responses. They also
 boot the actual watcher against etcd on another container IP, verify existing
 and newly added routes, exercise endpoint overrides, and reject readiness when
 the watcher or etcd is unavailable.
+
+The ACME test uses a local [Pebble](https://github.com/letsencrypt/pebble)
+server. It upgrades lego 4 data written by Edge 2.7.14, runs the lego actions
+Wodby requests, and checks that 2.7.14 still renews with the migrated account.
+On hosts that cannot run the amd64 2.7.14 image, set `LEGACY_IMAGE` to a local
+image with that release's lego at `/opt/wodby/bin/lego`.

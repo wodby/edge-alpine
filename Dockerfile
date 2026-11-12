@@ -3,11 +3,11 @@ ARG NGINX_IMAGE=wodby/nginx:1.31-r21@sha256:4fa08d4057f36e438338b4b78b1e3b22c167
 
 FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS lego-build
 
-ARG LEGO_VERSION=v4.35.2
-ARG LEGO_COMMIT=537f2ed0b7946b30bcfa81c5256e7c99ba6286bb
+ARG LEGO_VERSION=v5.6.0
+ARG LEGO_COMMIT=226c09fbe704ea412bea76cb268414f67686be1d
 # Space-separated module@version overrides, raised above lego's own requirements
 # only while the release scan reports a fixable vulnerability in that module.
-ARG LEGO_GO_MODULES="github.com/go-jose/go-jose/v4@v4.1.9 golang.org/x/crypto@v0.59.0 golang.org/x/net@v0.62.0 google.golang.org/grpc@v1.85.0"
+ARG LEGO_GO_MODULES=""
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -16,6 +16,8 @@ RUN set -eux; \
     git clone --branch "${LEGO_VERSION}" --depth=1 https://github.com/go-acme/lego.git /src; \
     test "$(git -C /src rev-parse HEAD)" = "${LEGO_COMMIT}"
 
+# Edge solves DNS-01 only through the exec provider, so the build links that
+# provider alone. The other tags are lego's own dead-code elimination tags.
 RUN set -eux; \
     cd /src; \
     if [ -n "${LEGO_GO_MODULES}" ]; then \
@@ -24,8 +26,9 @@ RUN set -eux; \
     fi; \
     go mod verify; \
     CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" go build -p 2 -trimpath \
+        -tags 'urfave_cli_no_template,grpcnotrace,validator_novalidatefn,ozzo_validation_no_template,lego_dnslight,lego_dns_exec' \
         -ldflags "-X main.version=${LEGO_VERSION}-wodby.1" \
-        -o dist/lego ./cmd/lego/
+        -o dist/lego .
 
 FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS gotpl-build
 
