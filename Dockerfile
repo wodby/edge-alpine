@@ -34,14 +34,13 @@ FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS confd-build
 
 # Wodby's confd fork: the etcd v3 backend with maintained dependencies.
 ARG CONFD_VERSION=v0.17.0
-ARG CONFD_COMMIT=a4e0b7c294b0911043740e08ea5e12fe01187bd3
+ARG CONFD_COMMIT=af032dce7c5954bd41c0f8bf221ce67c190f117f
 ARG TARGETOS
 ARG TARGETARCH
 
 RUN set -eux; \
     apk add --no-cache git; \
-    git clone https://github.com/wodby/confd.git /src; \
-    git -C /src checkout "${CONFD_COMMIT}"; \
+    git clone --branch "${CONFD_VERSION}" --depth=1 https://github.com/wodby/confd.git /src; \
     test "$(git -C /src rev-parse HEAD)" = "${CONFD_COMMIT}"
 
 RUN set -eux; \
