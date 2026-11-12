@@ -208,15 +208,16 @@ app_serial="$(serial app.example.test)"
 edge ln -s pebble_14000 "${edge_dir}/accounts/acme-v02.api.letsencrypt.org"
 lego_action "action=renew email=hello@wodby.com domains=app.example.test,www.app.example.test challenge=http" ok
 [[ "$(serial app.example.test)" == "${app_serial}" ]] || fail "renew replaced a certificate that is not due"
+
+# An unsupported action is reported as an error. Without an account, the script
+# turns every HTTP action into run, so this needs the account link too.
+lego_action "action=unknown email=hello@wodby.com domains=app.example.test challenge=http" error
 edge rm "${edge_dir}/accounts/acme-v02.api.letsencrypt.org"
 
 # revoke revokes the certificate and archives its files.
 lego_action "action=revoke email=hello@wodby.com domains=app.example.test,www.app.example.test challenge=http" ok
 edge test ! -f "${edge_dir}/certificates/app.example.test.crt"
 edge /bin/sh -c "ls ${edge_dir}/archives/certificates/ | grep -q app.example.test"
-
-# An unsupported action is reported as an error.
-lego_action "action=unknown email=hello@wodby.com domains=app.example.test challenge=http" error
 
 # 5. DNS-01: lego hands the challenge record to the Wodby callback. The test
 # stops once the callback is called, since nothing serves the record.
