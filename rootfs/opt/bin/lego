@@ -16,29 +16,15 @@ if [ "${challenge:-http}" = "dns" ]; then
     : "${dns_callback_token:?ACME DNS callback token is required}"
     export dns_callback_url dns_callback_token
 
+    # lego 5 `run` obtains a missing certificate and otherwise renews it when it
+    # is due or when its domains differ. `run` forces a new certificate, as it
+    # always did with lego 4.
     case "${action}" in
-        ensure)
-            if [ -f "${edge_dir}/certificates/${domain}.crt" ] \
-                && [ -f "${edge_dir}/certificates/${domain}.key" ]; then
-                action="renew"
-            else
-                action="run"
-            fi
+        ensure|renew)
+            set -- --renew-days=45 --no-random-sleep --force-cert-domains
             ;;
-        renew)
-            if [ ! -f "${edge_dir}/certificates/${domain}.crt" ] \
-                || [ ! -f "${edge_dir}/certificates/${domain}.key" ]; then
-                action="run"
-            fi
-            ;;
-    esac
-
-    case "${action}" in
         run)
-            set -- run
-            ;;
-        renew)
-            set -- renew --days=45 --no-random-sleep --force-cert-domains
+            set -- --renew-force --no-random-sleep --force-cert-domains
             ;;
         *)
             result="unsupported DNS lego action: ${action}"
@@ -47,15 +33,18 @@ if [ "${challenge:-http}" = "dns" ]; then
             ;;
     esac
 
+    # Like lego 4, wait only for the authoritative name servers; lego 5 also
+    # waits for public resolvers, which may still cache the missing record.
     result=$(EXEC_PATH=/opt/bin/lego-dns-callback \
         EXEC_PROPAGATION_TIMEOUT=180 \
         EXEC_POLLING_INTERVAL=4 \
         EXEC_SEQUENCE_INTERVAL=2 \
-        "$WODBY_BIN/lego" -a \
+        "$WODBY_BIN/lego" run -a \
         --email="${email}" \
         --domains="${domain}" \
         --domains="*.${domain}" \
         --dns=exec \
+        --dns.propagation.disable-rns \
         --path="${edge_dir}" \
         "$@" 2>&1)
 else
@@ -66,13 +55,15 @@ else
 
     case "${action}" in
         run)
-            set -- run
+            set -- run -a --renew-force --no-random-sleep --force-cert-domains
             ;;
         renew)
-            set -- renew --days=45 --no-random-sleep
+            set -- run -a --renew-days=45 --no-random-sleep
             ;;
         revoke)
-            set -- revoke
+            # lego 5 names a certificate by its first domain and archives it
+            # after revoking, as lego 4 did.
+            set -- certificates revoke --cert.name="${domains%%,*}"
             ;;
         *)
             result="unsupported lego action: ${action}"
@@ -81,13 +72,18 @@ else
             ;;
     esac
 
-    result=$("$WODBY_BIN/lego" -a \
-        --email="${email}" \
-        --domains="${domains}" \
-        --http \
-        --http.webroot="${edge_dir}" \
-        --path="${edge_dir}" \
-        "$@" 2>&1)
+    if [ "${action}" = "revoke" ]; then
+        result=$("$WODBY_BIN/lego" "$@" \
+            --email="${email}" \
+            --path="${edge_dir}" 2>&1)
+    else
+        result=$("$WODBY_BIN/lego" "$@" \
+            --email="${email}" \
+            --domains="${domains}" \
+            --http \
+            --http.webroot="${edge_dir}" \
+            --path="${edge_dir}" 2>&1)
+    fi
 fi
 
 errno=$?

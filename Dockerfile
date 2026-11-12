@@ -3,12 +3,11 @@ ARG NGINX_IMAGE=wodby/nginx:1.31-r21@sha256:4fa08d4057f36e438338b4b78b1e3b22c167
 
 FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS lego-build
 
-ARG LEGO_VERSION=v4.35.2
-ARG LEGO_COMMIT=537f2ed0b7946b30bcfa81c5256e7c99ba6286bb
-ARG GO_CRYPTO_VERSION=v0.59.0
-ARG GO_NET_VERSION=v0.62.0
-ARG GO_GRPC_VERSION=v1.85.0
-ARG GO_JOSE_VERSION=v4.1.9
+ARG LEGO_VERSION=v5.6.0
+ARG LEGO_COMMIT=226c09fbe704ea412bea76cb268414f67686be1d
+# Space-separated module@version overrides, raised above lego's own requirements
+# only while the release scan reports a fixable vulnerability in that module.
+ARG LEGO_GO_MODULES=""
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -17,51 +16,38 @@ RUN set -eux; \
     git clone --branch "${LEGO_VERSION}" --depth=1 https://github.com/go-acme/lego.git /src; \
     test "$(git -C /src rev-parse HEAD)" = "${LEGO_COMMIT}"
 
-COPY patches/lego-security.patch /tmp/lego-security.patch
-
+# Edge solves DNS-01 only through the exec provider, so the build links that
+# provider alone. The other tags are lego's own dead-code elimination tags.
 RUN set -eux; \
     cd /src; \
-    git apply --unidiff-zero /tmp/lego-security.patch; \
-    go get \
-        "golang.org/x/crypto@${GO_CRYPTO_VERSION}" \
-        "golang.org/x/net@${GO_NET_VERSION}" \
-        "google.golang.org/grpc@${GO_GRPC_VERSION}" \
-        "github.com/go-jose/go-jose/v4@${GO_JOSE_VERSION}"; \
-    go mod tidy; \
+    if [ -n "${LEGO_GO_MODULES}" ]; then \
+        go get ${LEGO_GO_MODULES}; \
+        go mod tidy; \
+    fi; \
     go mod verify; \
     CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" go build -p 2 -trimpath \
+        -tags 'urfave_cli_no_template,grpcnotrace,validator_novalidatefn,ozzo_validation_no_template,lego_dnslight,lego_dns_exec' \
         -ldflags "-X main.version=${LEGO_VERSION}-wodby.1" \
-        -o dist/lego ./cmd/lego/
+        -o dist/lego .
 
 FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS confd-build
 
-ARG CONFD_COMMIT=919444eb6cf721d198b2bb18581d0f0b3734d107
-ARG ETCD_CLIENT_VERSION=v3.6.16
-ARG GO_CRYPTO_VERSION=v0.59.0
-ARG GO_NET_VERSION=v0.62.0
-ARG GO_GRPC_VERSION=v1.85.0
+# Wodby's confd fork: the etcd v3 backend with maintained dependencies.
+ARG CONFD_VERSION=v0.17.0
+ARG CONFD_COMMIT=af032dce7c5954bd41c0f8bf221ce67c190f117f
 ARG TARGETOS
 ARG TARGETARCH
 
 RUN set -eux; \
     apk add --no-cache git; \
-    git clone https://github.com/kelseyhightower/confd.git /src; \
-    git -C /src checkout "${CONFD_COMMIT}"; \
+    git clone --branch "${CONFD_VERSION}" --depth=1 https://github.com/wodby/confd.git /src; \
     test "$(git -C /src rev-parse HEAD)" = "${CONFD_COMMIT}"
-
-COPY build/confd/client.go /src/backends/client.go
 
 RUN set -eux; \
     cd /src; \
-    go get "go.etcd.io/etcd/client/v3@${ETCD_CLIENT_VERSION}"; \
-    go get \
-        "golang.org/x/crypto@${GO_CRYPTO_VERSION}" \
-        "golang.org/x/net@${GO_NET_VERSION}" \
-        "google.golang.org/grpc@${GO_GRPC_VERSION}"; \
-    go mod tidy; \
     go mod verify; \
-    CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" go build -mod=mod -p 2 -trimpath \
-        -ldflags "-s -w" \
+    CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" go build -p 2 -trimpath \
+        -ldflags "-s -w -X main.Version=${CONFD_VERSION#v} -X main.GitSHA=${CONFD_COMMIT}" \
         -o /confd .
 
 FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS gotpl-build

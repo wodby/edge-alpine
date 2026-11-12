@@ -18,13 +18,13 @@ if [[ ! -f "${key}" || ! -f "${cert}" ]]; then
   exec /opt/bin/default_cert_create
 fi
 
-/opt/wodby/bin/lego -a \
+/opt/wodby/bin/lego run -a \
   --email="hello@wodby.com" \
   --domains="${domain}" \
   --http \
   --http.webroot="${edge_dir}" \
   --path="${edge_dir}" \
-  renew --days=45
+  --renew-days=45
 
 # The job runs daily and usually has nothing to renew: reload nginx only when
 # the stored certificate differs from the one being served.

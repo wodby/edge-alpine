@@ -82,7 +82,7 @@ done
 
 docker exec "${container}" /usr/sbin/nginx -t
 docker exec "${container}" /usr/sbin/nginx -v
-docker exec "${container}" /opt/wodby/bin/lego --version
+docker exec "${container}" /opt/wodby/bin/lego --version | grep -F 'lego version v5.'
 docker exec "${container}" /bin/sh -c 'test "$(cat /proc/1/comm)" = s6-svscan'
 docker exec "${container}" /bin/sh -c 'pidof nginx >/dev/null && pidof crond >/dev/null'
 docker exec "${container}" /bin/sh -c 'test -x /command/with-contenv'

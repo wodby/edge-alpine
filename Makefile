@@ -16,6 +16,7 @@ build:
 
 test:
 	IMAGE=$(IMAGE) ./tests/run.sh
+	IMAGE=$(IMAGE) ./tests/acme.sh
 
 push:
 	docker push $(IMAGE)
