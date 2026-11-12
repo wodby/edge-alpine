@@ -5,10 +5,9 @@ FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS lego-build
 
 ARG LEGO_VERSION=v4.35.2
 ARG LEGO_COMMIT=537f2ed0b7946b30bcfa81c5256e7c99ba6286bb
-ARG GO_CRYPTO_VERSION=v0.59.0
-ARG GO_NET_VERSION=v0.62.0
-ARG GO_GRPC_VERSION=v1.85.0
-ARG GO_JOSE_VERSION=v4.1.9
+# Space-separated module@version overrides, raised above lego's own requirements
+# only while the release scan reports a fixable vulnerability in that module.
+ARG LEGO_GO_MODULES="github.com/go-jose/go-jose/v4@v4.1.9 golang.org/x/crypto@v0.59.0 golang.org/x/net@v0.62.0 google.golang.org/grpc@v1.85.0"
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -17,17 +16,12 @@ RUN set -eux; \
     git clone --branch "${LEGO_VERSION}" --depth=1 https://github.com/go-acme/lego.git /src; \
     test "$(git -C /src rev-parse HEAD)" = "${LEGO_COMMIT}"
 
-COPY patches/lego-security.patch /tmp/lego-security.patch
-
 RUN set -eux; \
     cd /src; \
-    git apply --unidiff-zero /tmp/lego-security.patch; \
-    go get \
-        "golang.org/x/crypto@${GO_CRYPTO_VERSION}" \
-        "golang.org/x/net@${GO_NET_VERSION}" \
-        "google.golang.org/grpc@${GO_GRPC_VERSION}" \
-        "github.com/go-jose/go-jose/v4@${GO_JOSE_VERSION}"; \
-    go mod tidy; \
+    if [ -n "${LEGO_GO_MODULES}" ]; then \
+        go get ${LEGO_GO_MODULES}; \
+        go mod tidy; \
+    fi; \
     go mod verify; \
     CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" go build -p 2 -trimpath \
         -ldflags "-X main.version=${LEGO_VERSION}-wodby.1" \
