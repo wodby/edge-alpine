@@ -29,7 +29,7 @@ docker run --rm \
     "${image}" \
     dhparam -dsaparam -out /edge/dhparam.pem 2048 >/dev/null 2>&1
 
-docker run --rm --entrypoint /opt/wodby/tools/bin/confd "${image}" --version | grep -F 'confd'
+docker run --rm --entrypoint /opt/wodby/tools/bin/confd "${image}" -version | grep -F 'confd'
 docker run -d \
     --name "${render_etcd}" \
     quay.io/coreos/etcd:v3.6.14 \
@@ -48,7 +48,7 @@ docker run --rm \
     --entrypoint /bin/sh \
     -v "${repo_root}/tests/confd-render:/tmp/confd:ro" \
     "${image}" \
-    -c '/opt/wodby/tools/bin/confd etcd --node http://127.0.0.1:2379 --onetime --sync-only --confdir /tmp/confd && grep -F "/mnt/containers/edge/certificates/dev.example.test.crt;" /tmp/nginx.conf'
+    -c '/opt/wodby/tools/bin/confd -onetime -sync-only -backend etcdv3 -node http://127.0.0.1:2379 -confdir /tmp/confd && grep -F "/mnt/containers/edge/certificates/dev.example.test.crt;" /tmp/nginx.conf'
 docker rm -f "${render_etcd}" >/dev/null
 
 docker run -d \
@@ -88,8 +88,7 @@ docker exec "${container}" /bin/sh -c 'pidof nginx >/dev/null && pidof crond >/d
 docker exec "${container}" /bin/sh -c 'test -x /command/with-contenv'
 docker exec "${container}" grep -F '/command/with-contenv /opt/bin/default_cert_create' /etc/crontabs/root >/dev/null
 docker exec "${container}" grep -F '/command/with-contenv /opt/bin/default_cert_renew' /etc/crontabs/root >/dev/null
-# The stub records nothing, so check the arguments the service passed to it.
-docker exec "${container}" /bin/sh -c "ps | grep -q '[c]onfd etcd --node http://[^ ]*:2379 --watch --reload-cmd-timeout=0'"
+docker exec "${container}" /bin/sh -c "ps | grep -q '[c]onfd .*etcdv3.*2379.*watch'"
 docker exec "${container}" /bin/sh -c '! apk info -e curl && ! apk info -e libcurl && ! apk info -e tar && ! apk info -e wget && ! apk info -e unzip'
 docker exec "${container}" /bin/sh -n /opt/bin/lego-dns-callback
 docker exec "${container}" grep -F 'cert_domain' /etc/confd/templates/nginx.conf.tmpl >/dev/null

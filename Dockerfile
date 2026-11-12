@@ -32,34 +32,24 @@ RUN set -eux; \
 
 FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS confd-build
 
-# The maintained confd fork; kelseyhightower/confd has had no release since 2018.
-ARG CONFD_VERSION=v0.41.3
-ARG CONFD_COMMIT=f15872ddfbdaf7ed762a9a6bd897106d4c3a7476
-# Space-separated module@version overrides, raised above confd's own requirements
-# only while the release scan reports a fixable vulnerability in that module.
-ARG CONFD_GO_MODULES="golang.org/x/net@v0.62.0"
+# Wodby's confd fork: the etcd v3 backend with maintained dependencies.
+ARG CONFD_VERSION=v0.17.0
+ARG CONFD_COMMIT=a4e0b7c294b0911043740e08ea5e12fe01187bd3
 ARG TARGETOS
 ARG TARGETARCH
 
 RUN set -eux; \
     apk add --no-cache git; \
-    git clone --branch "${CONFD_VERSION}" --depth=1 https://github.com/abtreece/confd.git /src; \
+    git clone https://github.com/wodby/confd.git /src; \
+    git -C /src checkout "${CONFD_COMMIT}"; \
     test "$(git -C /src rev-parse HEAD)" = "${CONFD_COMMIT}"
-
-# Compile in the etcd backend only; the stock file links every backend.
-COPY build/confd/client.go /src/pkg/backends/client.go
 
 RUN set -eux; \
     cd /src; \
-    rm -rf vendor; \
-    if [ -n "${CONFD_GO_MODULES}" ]; then \
-        go get ${CONFD_GO_MODULES}; \
-        go mod tidy; \
-    fi; \
     go mod verify; \
-    CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" go build -mod=mod -p 2 -trimpath \
+    CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" go build -p 2 -trimpath \
         -ldflags "-s -w -X main.Version=${CONFD_VERSION#v} -X main.GitSHA=${CONFD_COMMIT}" \
-        -o /confd ./cmd/confd
+        -o /confd .
 
 FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS gotpl-build
 

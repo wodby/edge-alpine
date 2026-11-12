@@ -22,10 +22,10 @@ for available versions. `latest` follows the default branch.
   longer compiles nginx or upgrades an obsolete Alpine filesystem in place.
 - The final image refreshes packages from the pinned Alpine release during the
   build and removes inherited build/runtime tools that edge does not use.
-- s6-overlay supervises nginx, crond, and `confd`. confd is the maintained
-  [`abtreece/confd`](https://github.com/abtreece/confd) fork, built from a
-  release tag with only its etcd backend compiled in. Edge connects directly to
-  etcd v3 on port 2379.
+- s6-overlay supervises nginx, crond, and `confd`. confd is built from a
+  release of [`wodby/confd`](https://github.com/wodby/confd), Wodby's fork of
+  the original confd with only its etcd v3 backend and current dependencies.
+  Edge connects directly to etcd v3 on port 2379.
 - lego is built from a v5 release tag with only its `exec` DNS provider, which
   hands DNS-01 records to Wodby.
 - lego 5 stores ACME account keys differently from lego 4. On its first start
@@ -36,8 +36,9 @@ for available versions. `latest` follows the default branch.
   stops nginx.
 
 The pinned versions and digests live at the top of `Dockerfile`.
-`LEGO_GO_MODULES` and `CONFD_GO_MODULES` raise Go modules above what lego or
-confd require, and only while a fixable vulnerability needs it.
+`LEGO_GO_MODULES` raises Go modules above what lego requires, and only while a
+fixable vulnerability needs it. confd's dependencies are updated in
+`wodby/confd` itself.
 
 The [images updater](https://github.com/wodby/images) keeps the branch current
 every day, but tags a release only when the latest release has a fixable High or
