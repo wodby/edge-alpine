@@ -24,14 +24,16 @@ for available versions. `latest` follows the default branch.
   build and removes inherited build/runtime tools that edge does not use.
 - s6-overlay supervises nginx, crond, and the host-provided legacy `confd`.
   Edge retains the etcd v2 key API on port 4001.
-- lego stays on the v4 CLI/storage contract so existing Wodby 1 certificate
-  data does not need a destructive v5 migration. The v4.35.2 source is rebuilt
-  as `v4.35.2-wodby.1` with Go 1.26.5 and patched `x/crypto`, `x/net`, and gRPC
-  dependencies.
+- lego stays on the v4 CLI/storage contract. The v4.35.2 source is rebuilt as
+  `v4.35.2-wodby.1` with the Go module overrides in `LEGO_GO_MODULES`.
 
-The pinned versions and digests live at the top of `Dockerfile`. Update those
-pins together and run the build, runtime tests, and an image vulnerability scan
-before releasing a new tag.
+The pinned versions and digests live at the top of `Dockerfile`.
+`LEGO_GO_MODULES` raises Go modules above what lego requires, and only while a
+fixable vulnerability needs it.
+
+The [images updater](https://github.com/wodby/images) keeps this branch current
+every day, but tags a 2.x release only when the latest release has a fixable
+High or Critical vulnerability that the branch fixes.
 
 ## Runtime contract
 
