@@ -7,7 +7,7 @@
 # - the lego actions Edge runs for Wodby (run, renew, revoke, DNS-01 ensure) and
 #   the scheduled renewal of the node certificate.
 
-set -euo pipefail
+set -Eeuo pipefail
 
 image="${IMAGE:-wodby/edge-alpine:latest}"
 # The last lego 4 release. LEGACY_IMAGE overrides it, e.g. with a local build
@@ -49,6 +49,15 @@ fail() {
 edge() {
     docker exec "${container}" "$@"
 }
+
+# Runs a command the way Edge's services and cron jobs do: with-contenv and the
+# execline tools it uses come from s6's /command, which docker exec leaves out of PATH.
+edge_s6() {
+    docker exec -e PATH=/command:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+        "${container}" /command/with-contenv "$@"
+}
+
+trap 'echo "acme test failed at line ${LINENO}: ${BASH_COMMAND}" >&2' ERR
 
 docker network create "${network}" >/dev/null
 docker run -d \
@@ -134,7 +143,7 @@ lego_action() {
     local settings="$1" expected="$2" answer
     edge /bin/sh -c "printf '%s\n' ${settings} > /etc/wodby/lego"
     edge /bin/sh -c ': > /tmp/backend-messages'
-    if ! edge /command/with-contenv /opt/bin/lego; then
+    if ! edge_s6 /opt/bin/lego; then
         [[ "${expected}" == error ]] || fail "lego action failed: ${settings}"
     fi
     answer="$(edge grep -F '"type":"response"' /tmp/backend-messages | tail -n 1)"
@@ -154,7 +163,7 @@ serial() {
 
 # 3. The scheduled renewal leaves a certificate that is not due alone.
 node_serial="$(serial "${node_domain}")"
-edge /command/with-contenv /opt/bin/default_cert_renew
+edge_s6 /opt/bin/default_cert_renew
 [[ "$(serial "${node_domain}")" == "${node_serial}" ]] || fail "a certificate that is not due was renewed"
 
 # 4. HTTP-01: run issues a certificate for the account the upgrade kept.
@@ -192,7 +201,8 @@ docker exec -d "${container}" /bin/sh -c \
 edge rm -f /tmp/test-http-body
 edge /bin/sh -c "printf '%s\n' action=ensure email=hello@wodby.com domain=dns.example.test challenge=dns \
     dns_callback_url=http://127.0.0.1:18081 dns_callback_token=test-token > /etc/wodby/lego"
-docker exec -d "${container}" /command/with-contenv /opt/bin/lego
+docker exec -d -e PATH=/command:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+    "${container}" /command/with-contenv /opt/bin/lego
 callback=""
 for _ in $(seq 1 60); do
     # The etcd stand-in writes the same file, so wait for the callback's body.
