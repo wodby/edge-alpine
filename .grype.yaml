@@ -1,2 +1,48 @@
 # Keep accepted findings visible in scan reports.
 show-suppressed: true
+
+ignore:
+  - vulnerability: CVE-2026-88823
+    package:
+      upstream-name: openssl
+      version: 3.5.9-r0
+      type: apk
+    reason: >-
+      Temporarily accepted while Alpine has no fixed OpenSSL package. AES-GCM-SIV
+      additional data forgery, rated Low by OpenSSL and fixed in OpenSSL 3.5.10,
+      scheduled for 1 December 2026. Edge does not use the affected QUIC client, AES-
+      GCM-SIV or CMS code. The package remains vulnerable; remove this exception after
+      upgrading to a fixed build.
+  - vulnerability: CVE-2026-95691
+    package:
+      upstream-name: openssl
+      version: 3.5.9-r0
+      type: apk
+    reason: >-
+      Temporarily accepted while Alpine has no fixed OpenSSL package. QUIC client use-
+      after-free, rated Low by OpenSSL and fixed in OpenSSL 3.5.10, scheduled for 1
+      December 2026. Edge does not use the affected QUIC client, AES-GCM-SIV or CMS
+      code. The package remains vulnerable; remove this exception after upgrading to a
+      fixed build.
+  - vulnerability: CVE-2026-95692
+    package:
+      upstream-name: openssl
+      version: 3.5.9-r0
+      type: apk
+    reason: >-
+      Temporarily accepted while Alpine has no fixed OpenSSL package. AES-GCM-SIV out-
+      of-bounds read, rated Low by OpenSSL and fixed in OpenSSL 3.5.10, scheduled for
+      1 December 2026. Edge does not use the affected QUIC client, AES-GCM-SIV or CMS
+      code. The package remains vulnerable; remove this exception after upgrading to a
+      fixed build.
+  - vulnerability: CVE-2026-107496
+    package:
+      upstream-name: openssl
+      version: 3.5.9-r0
+      type: apk
+    reason: >-
+      Temporarily accepted while Alpine has no fixed OpenSSL package. CMS_encrypt()
+      infinite loop, rated Low by OpenSSL and fixed in OpenSSL 3.5.10, scheduled for 1
+      December 2026. Edge does not use the affected QUIC client, AES-GCM-SIV or CMS
+      code. The package remains vulnerable; remove this exception after upgrading to a
+      fixed build.
