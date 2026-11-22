@@ -46,3 +46,58 @@ ignore:
       December 2026. Edge does not use the affected QUIC client, AES-GCM-SIV or CMS
       code. The package remains vulnerable; remove this exception after upgrading to a
       fixed build.
+  - vulnerability: CVE-2026-124709
+    package:
+      upstream-name: openssl
+      version: 3.5.9-r0
+      type: apk
+    reason: >-
+      Temporarily accepted while Alpine has no fixed OpenSSL package. QUIC server
+      memory retention for rejected streams, rated Low by OpenSSL and fixed in OpenSSL
+      3.5.10, scheduled for 1 December 2026. Edge does not enable HTTP/3, and NGINX
+      does not use the OpenSSL QUIC stack. The package remains vulnerable; remove this
+      exception after upgrading to a fixed build.
+  - vulnerability: CVE-2026-107493
+    package:
+      upstream-name: openssl
+      version: 3.5.9-r0
+      type: apk
+    reason: >-
+      Temporarily accepted while Alpine has no fixed OpenSSL package.
+      PEM_X509_INFO_read_bio_ex() use-after-free when appending to a caller-supplied
+      stack, rated Low by OpenSSL and fixed in OpenSSL 3.5.10, scheduled for 1
+      December 2026. Neither NGINX nor the openssl tool calls it with an existing
+      stack. The package remains vulnerable; remove this exception after upgrading to
+      a fixed build.
+  - vulnerability: CVE-2026-107494
+    package:
+      upstream-name: openssl
+      version: 3.5.9-r0
+      type: apk
+    reason: >-
+      Temporarily accepted while Alpine has no fixed OpenSSL package. QUIC
+      RETIRE_CONNECTION_ID backlog memory exhaustion, published by OpenSSL without an
+      advisory severity; the fix is approved for the OpenSSL 3.5 branch. Edge does not
+      enable HTTP/3, and NGINX does not use the OpenSSL QUIC stack. The package remains
+      vulnerable; remove this exception after upgrading to a fixed build.
+  - vulnerability: CVE-2026-121482
+    package:
+      upstream-name: openssl
+      version: 3.5.9-r0
+      type: apk
+    reason: >-
+      Temporarily accepted while Alpine has no fixed OpenSSL package. Quadratic CPU
+      use when verifying crafted CMS or PKCS#7 SignedData with CRL checks, published
+      by OpenSSL without an advisory severity; the fix is merged to the OpenSSL 3.5
+      branch. Edge does not verify CMS or PKCS#7 messages. The package remains
+      vulnerable; remove this exception after upgrading to a fixed build.
+  - vulnerability: CVE-2026-84786
+    package:
+      upstream-name: openssl
+      version: 3.5.9-r0
+      type: apk
+    reason: >-
+      Temporarily accepted while Alpine has no fixed OpenSSL package. DANE TLS client
+      NULL pointer dereference, published by OpenSSL without an advisory severity; the
+      fix is approved for the OpenSSL 3.5 branch. Edge does not use DANE. The package
+      remains vulnerable; remove this exception after upgrading to a fixed build.
