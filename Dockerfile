@@ -3,8 +3,8 @@ ARG NGINX_IMAGE=wodby/nginx:1.31-r24@sha256:03b77d9109b3cdd9674f22a78739cd79b1e2
 
 FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS lego-build
 
-ARG LEGO_VERSION=v5.6.0
-ARG LEGO_COMMIT=226c09fbe704ea412bea76cb268414f67686be1d
+ARG LEGO_VERSION=v5.7.0
+ARG LEGO_COMMIT=a62bab8859b2676c20de85e283b975b46054c724
 # Space-separated module@version overrides, raised above lego's own requirements
 # only while the release scan reports a fixable vulnerability in that module.
 ARG LEGO_GO_MODULES=""
