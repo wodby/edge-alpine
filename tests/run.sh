@@ -20,6 +20,10 @@ cleanup() {
     docker rm -f "${override_container}" >/dev/null 2>&1 || true
     docker rm -f "${render_etcd}" >/dev/null 2>&1 || true
     docker network rm "${network}" >/dev/null 2>&1 || true
+    # Edge's cron runs default_cert_create every 10 minutes, and its lego run
+    # leaves root-owned account data in the mounted directory.
+    docker run --rm -v "${test_root}:/test-root" --entrypoint /bin/sh "${image}" \
+        -c 'rm -rf /test-root/edge' >/dev/null 2>&1 || true
     rm -rf "${test_root}"
     exit "${exit_status}"
 }
