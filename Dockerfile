@@ -1,10 +1,10 @@
 ARG GO_IMAGE=golang:1.26.11-alpine3.23@sha256:23f198931d4bd83b4f5a613bd75656257ae8bf832dcbc2db80e1050b5219ca2a
-ARG NGINX_IMAGE=wodby/nginx:1.31-r26@sha256:3315d7813ad31b5ba4de5b6c6e631ba92cb15f1ff82d37afdf0d8a8b653535db
+ARG NGINX_IMAGE=wodby/nginx:1.31-r27@sha256:3ab9fc4f30051dd4d9894ff00e907d84ee4c803a1ea88dfdd0d7cbc11c4b9f85
 
 FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS lego-build
 
-ARG LEGO_VERSION=v5.7.0
-ARG LEGO_COMMIT=a62bab8859b2676c20de85e283b975b46054c724
+ARG LEGO_VERSION=v5.8.0
+ARG LEGO_COMMIT=60f66f43d988047539c9c246fa024e49742ec07b
 # Space-separated module@version overrides, raised above lego's own requirements
 # only while the release scan reports a fixable vulnerability in that module.
 ARG LEGO_GO_MODULES=""
